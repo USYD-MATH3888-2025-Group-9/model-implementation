@@ -1,13 +1,13 @@
 \documentclass[8pt]{beamer}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
-
-
 \usepackage{lmodern}
 \usetheme{Boadilla}
 
 \usepackage[backend=bibtex, style=alphabetic]{biblatex}
 \addbibresource{bib.bib}
+
+
 
 \begin{document}
 	\author{Albert Stark, Calvin Ming En Kok, Kyle George, Tim Lin}
@@ -16,15 +16,21 @@
 	\logo{
 		%\includegraphics[width=2cm]{usydlogo.png}
 	}
+
 	
 	\institute{University of Sydney}
 	\date{\today}
 	\subject{MATH3888}
 	\setbeamercovered{transparent}
 	\setbeamertemplate{navigation symbols}{}
+
 	
 	\begin{frame}
 		\maketitle
+
+		\begin{center}
+			\includegraphics[width=0.35\textwidth]{usydlogo.png}
+		\end{center}	
 	\end{frame}
 	
 	\begin{frame}
@@ -61,18 +67,19 @@
 		\[\text{examples: }G_b(x) := \tfrac{x e^{-x}}{e^x + e^{-x}} \text{ (non-monotone)} \quad G_b(x) := \tfrac{x-\sqrt{x^2 - 4}}{2} + 1 \text{ (monotone)}\]
 %		\vspace{0.1cm}
 
-		The paper demonstrates experimentally (via computational simulation) the existence of spiral waves in both the examples provided.\\
-		The wavetrains were identified with the use of AUTO in the paper, this is possible for us, although python alternatives such as PyCoBi\footfullcite{PyCoBiPackage} and scFates \footfullcite{scFatesPaper} \footfullcite{scFatesGithub} are also of interest.
+		The paper demonstrates experimentally (via computational simulation) the existence of spiral waves in both the examples provided. \quad The wavetrains were identified with the use of AUTO in the paper, this is possible for us, although python alternatives such as PyCoBi \cite{PyCoBiPackage} and scFates \cite{scFatesPaper} \cite{scFatesGithub} are also of interest.\\
 		
+		The potential of characterising in general the monotone or non-monotone functions that generate these spiral waves is of interest, as is the physicality of these functions and their solutions.\\
 		\thinspace\\
-		The potential of characterising in general the monotone or non-monotone functions that generate these spiral waves is of interest, as is the physicality of these functions and their solutions.
+		
+		We anticipate that we will perform wavetrain and spiral-wave analysis. As well as bifurcation and limit-cycle analysis
 
 	\end{frame}
 
 
 	\begin{frame}
-		\frametitle{Conclusion}
-		
+		\frametitle{Conclusion + bib}
+		\printbibliography
 	\end{frame}
 
 %	\frame[shrink=30]{\printbibliography}
