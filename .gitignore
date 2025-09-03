@@ -6,3 +6,7 @@
 *.snm
 *.nav
 *.out
+*.run.xml
+*.blg
+*.bbl
+main-blx.bib
