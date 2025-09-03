@@ -35,6 +35,24 @@
 	
 	\begin{frame}
 		\frametitle{The FitzHugh-Nagumo model}
+        \begin{align*}
+		\varepsilon \frac{dv}{dt}&=f(v)-w+I_{\text{app}}&\text{(cubic)}
+		\\
+		\frac{dw}{dt}&=v-\gamma w &\text{(linear)}
+		\end{align*}
+		where
+		\[
+		f(v)=v(1-v)(v-\alpha)
+		\]
+		for typical values within \(0<\alpha<1,\varepsilon\ll 1,\gamma\approx0.5\) \cite{GaniM.Osman2022IWaS}\cite{LabouriauIsabelSalgado2014Psia}. This simplifies the four Hodgkin-Huxley equations to two: one fast and one slow. The circuit diagram below has equivalent function \cite{Textbook}.
+		\begin{center}
+			\begin{circuitikz}
+			\draw (0,0) to [short,o-,l^=$V_e$] (1,0);
+			\draw (1,0) to (1,1) to [C,l_=C] (3,1) to (9,1) to (9,0);
+			\draw (1,0) to (3,0) to [R,l_=R] (5,0) to [L,l_=L] (7,0) to [battery,l_=$V_0$] (9,0) to [short,-o,l^=$V_i$] (10,0);
+			\draw (1,0) to (1,-1) to [vR,l_=f(v)] (3,-1) to (9,-1) to (9,0);
+			\end{circuitikz}
+		\end{center}
 	\end{frame}
 
 	\begin{frame}
