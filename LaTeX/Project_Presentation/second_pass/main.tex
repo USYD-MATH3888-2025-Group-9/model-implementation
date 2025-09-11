@@ -45,7 +45,7 @@
 
 	
 	\begin{frame}
-		\frametitle{The Hodgkin-Huxley and Hindmarsh-Rose models}
+		\frametitle{The Hodgkin-Huxley and Hindmarsh-Rose Models}
         The Hodgkin-Huxley model is:
         \begin{align*}
             C_m\frac{dv}{dt}&=-\tu{\overline{g}}{K}n^4(v-\tu{v}{K})-\tu{\overline{g}}{Na}m^3h(v-\tu{v}{Na})-\tu{\overline{g}}{L}(v-\tu{v}{L})+\tu{I}{app}\\
@@ -60,7 +60,19 @@
         \end{align*}
         where \(y=\delta w\) and \(w=r+z\) for a membrane potential \(v\), \(r\) recovery variable and \(I\) a non-constant external current. A steady state \(x_1\) is included to ensure consistency with a two-variable system ignoring \(w\). \(a,b,c,d,s,\delta\) are all constants. This model constitutes replacing the constant \(\tu{I}{app}\) with a variable \(I\) and using terms cubic in \(v\), rather than \(m\) and \(n\). This gives five points of interest in bifurcation.
 	\end{frame}
-
+    \begin{frame}{The Connor-Stevens Model}
+        The Connor-Stevens ion channel model depicts a series of ion channels, with different behaviours over an index \(j\in\{1,2,3,4\}\) corresponding to \(\text{K}^+\) (\(j=2\))\(,\text{Na}^+,\) (\(j=3\)) a leaky channel (\(j=1\)) and a combined \(\text{K}^+\) and \(\text{Na}^+\) channel (\(j=4\)).
+        \begin{equation*}
+            I(t)=C_m\frac{dv}{dt}+\sum_{j=1}^4 \overline{g}_j (A_j(V,t))^jB_j(V,t)(V-V_j)
+        \end{equation*}
+        The numerical assignment \(j\) directly corresponds to the quantity of each channel in a complete set within in the cell.
+        Each channel over \(j\) has its own representative \(A_j\) and \(B_j\) functions:
+        \begin{align*}
+            \tau_{Aj}\frac{dA_j(V,t)}{dt}+A_j(V,t)&=A_j(V,\infty)\\
+            \tau_{Bj}\frac{dB_j(V,t)}{dt}+B_j(V,t)&=B_j(V,\infty)
+        \end{align*}
+        which are in turn dependent on constant \(\tau\) values and their steady states at infinite time \(A_j(V,\infty)\) and \(B_j(V,\infty)\). Depending on initial conditions, the model could have nine bifurcation points of interest, or it can be reduced to the Hodgkin-Huxley model with four and to the Hindmarsh-Rose model with five.
+    \end{frame}
 	\begin{frame}
 		\frametitle{Submodels}
         There are many submodels to the Hodgkin-Huxely\footcite{hodgkinhuxely} equations, these include things like the Izhikevich\footcite{izhikevich} model for neuronal spiking, the Moris-Lecar model\footcite{morislecar}, which was designed for $Ca^{2+}$ and $K^+$ oscillations, and the Hindmarsh-Rose model \footcite{hindmarshrose}, which was also designed to model neuronal spiking.\\
@@ -98,8 +110,8 @@
 
 	\begin{frame}
 		\frametitle{Conclusion and bibliography}
-		
-		\printbibliography
-		
+		\begin{tiny}
+			\printbibliography
+		\end{tiny}
 	\end{frame}
 \end{document}
