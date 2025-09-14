@@ -1,12 +1,10 @@
 # Dependencies: numpy, matplotlib, scipy
 
-# the variables a2,a3 and a4 diverge to positive infinity after 10ms.
-# any parameters marked 'trial' have testing values rather than real ones
-
 import numpy as np
 from scipy.integrate import solve_ivp
 from scipy.optimize import fsolve
 import matplotlib.pyplot as plt
+import warnings # Import the warnings module
 
 # --- Setup
 
@@ -18,7 +16,7 @@ def sigmoid(x,a,b,c,d):
 
 # --- Physiological Parameters ---
 class Parameters:
-    cm = 1 # trial, 14pF
+    cm = 14 # trial, 14pF
     @staticmethod
     def v(j): #mV
         '''
@@ -132,7 +130,7 @@ class Parameters:
                 return sigmoid(v - 60,1,1,0,6)
     @staticmethod
     def I(t):
-        return 0
+        return 1
 
 # --- Solving the ODE and Plotting the Potential ---
 
@@ -166,8 +164,8 @@ def connor_stevens(t, x, p):
     dadt = [0,0] # so that the indexes line up
     dbdt = [0,0]
     for j in [2,3,4]:
-        dajdt = (1 / p.atau(j,v)) * (p.ainf(j,v) * a(j))
-        dbjdt = (1 / p.btau(j,v)) * (p.binf(j,v) * b(j))
+        dajdt = (1 / p.atau(j,v)) * (p.ainf(j,v) - a(j))
+        dbjdt = (1 / p.btau(j,v)) * (p.binf(j,v) - b(j))
         dadt.append(dajdt)
         dbdt.append(dbjdt)
     out = [dvdt,dadt[2],dadt[3],dadt[4],dbdt[2],dbdt[3],dbdt[4]]
@@ -176,7 +174,7 @@ def connor_stevens(t, x, p):
     
 # 2. Solve Numerically
 params = Parameters()
-V0 = [-20,0.1,0.1,0.1,0.1,0.1,0.1]
+V0 = [-20,0.1,0.1,0.1,0.9,0.9,0.9]
 t_span = [0, 50]
 t_eval = np.linspace(t_span[0], t_span[1], 500)
 sol = solve_ivp(connor_stevens, t_span, V0, args=(params,), dense_output=True, t_eval=t_eval, method='RK45')
