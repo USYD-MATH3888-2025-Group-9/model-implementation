@@ -4,6 +4,7 @@ import numpy as np
 from scipy.integrate import solve_ivp
 from scipy.optimize import fsolve
 import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
 import warnings # Import the warnings module
 
 # --- Setup
@@ -206,33 +207,38 @@ def pretty_names(index):
         case 6:
             return 'b4: Combined Off'
 
-plt.figure(figsize=(12, 6))
-plt.plot(sol.t, sol.y[0], label=pretty_names(0))
-plt.title('Membrane Potential Time Course')
-plt.xlabel('Time (ms)')
-plt.ylabel('Membrane voltage (mV)')
-plt.grid(True)
-plt.legend()
-plt.show()
 
-plt.figure(figsize=(12, 6))
+gs = gridspec.GridSpec(2,2)
+fig = plt.figure(figsize=(24,12))
+ax1 = fig.add_subplot(gs[0,0])
+ax2 = fig.add_subplot(gs[1,0])
+ax3 = fig.add_subplot(gs[:,1])
+#axs[0,0].plot(sol.t, sol.y[0])
+
+ax1.plot(sol.t, sol.y[0], label=pretty_names(0))
+ax1.set_title('Membrane Potential Time Course')
+ax1.set_xlabel('Time (ms)')
+ax1.set_ylabel('Membrane voltage (mV)')
+ax1.grid(True)
+ax1.legend()
+
 for i in [1,2,3,4,5,6]:
-    plt.plot(sol.t, sol.y[i], label=pretty_names(i))
-plt.title('Channel Behaviour Time Course')
-plt.xlabel('Time (ms)')
-plt.ylabel('Activated Channels Proportion')
-plt.grid(True)
-plt.legend()
-plt.show()
+    ax2.plot(sol.t, sol.y[i], label=pretty_names(i))
+ax2.set_title('Channel Behaviour Time Course')
+ax2.set_xlabel('Time (ms)')
+ax2.set_ylabel('Activated Channels Proportion')
+ax2.grid(True)
+ax2.legend()
 
-plt.figure(figsize=(12, 6))
 for i in [2,3,4]:
     vrange = np.linspace(-100,100,100)
-    plt.plot(vrange, params.ainf(i,vrange), label=pretty_names(i - 1))
-    plt.plot(vrange,params.binf(i,vrange), label=pretty_names(i + 2))
-plt.title('Channel Behaviour vs Voltage')
-plt.xlabel('Voltage (mV)')
-plt.ylabel('Activated Channels Proportion')
-plt.grid(True)
-plt.legend()
+    ax3.plot(vrange, params.ainf(i,vrange), label=pretty_names(i - 1))
+    ax3.plot(vrange,params.binf(i,vrange), label=pretty_names(i + 2))
+ax3.set_title('Channel Behaviour vs Voltage')
+ax3.set_xlabel('Voltage (mV)')
+ax3.set_ylabel('Activated Channels Proportion')
+ax3.grid(True)
+ax3.legend()
+
+plt.savefig("plots")
 plt.show()
