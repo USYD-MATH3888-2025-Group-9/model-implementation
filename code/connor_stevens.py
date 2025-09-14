@@ -107,11 +107,13 @@ class Parameters:
                 #print(out)
                 return out
             case 3:
-                out = np.power(sigmoid(v,2,1,-10,20),(1 / 3))
+                out = np.power(sigmoid(v,1,1,-10,20),(1 / 3)) 
+                #a = 1 should be 2 according to the paper but that doesn't make sense
                 #print(out)
                 return out
             case 4:
-                out = np.power(sigmoid(v,2,1,-10,20),(1 / 4))
+                out = np.power(sigmoid(v,1,1,-10,5),(1 / 4)) 
+                #a = 1 should be 2 according to the paper but that doesn't make sense
                 #print(out)
                 return out
     @staticmethod
@@ -125,12 +127,18 @@ class Parameters:
             case 2:
                 return sigmoid(v,1,1,0,6)
             case 3:
-                return sigmoid(v,2,1,-10,20)
+                #a = 1 should be 2 according to the paper but that doesn't make sense
+                return sigmoid(v,1,1,-10,-20)
             case 4:
-                return sigmoid(v - 60,1,1,0,6)
+                return sigmoid(v + 60,1,1,0,-6)
     @staticmethod
-    def I(t):
-        return 1
+    def I(t): #applied current
+        if t > 80:
+            return 15
+        elif t > 50:
+            return -5
+        else:
+            return 0
 
 # --- Solving the ODE and Plotting the Potential ---
 
@@ -174,9 +182,9 @@ def connor_stevens(t, x, p):
     
 # 2. Solve Numerically
 params = Parameters()
-V0 = [-20,0.1,0.1,0.1,0.9,0.9,0.9]
-t_span = [0, 50]
-t_eval = np.linspace(t_span[0], t_span[1], 500)
+V0 = [-40,0.1,0.1,0.1,0.1,0.1,0.1]
+t_span = [0, 100]
+t_eval = np.linspace(t_span[0], t_span[1], 300)
 sol = solve_ivp(connor_stevens, t_span, V0, args=(params,), dense_output=True, t_eval=t_eval, method='RK45')
 
 # 3. Plot the Results
@@ -212,6 +220,18 @@ for i in [1,2,3,4,5,6]:
     plt.plot(sol.t, sol.y[i], label=pretty_names(i))
 plt.title('Channel Behaviour Time Course')
 plt.xlabel('Time (ms)')
+plt.ylabel('Activated Channels Proportion')
+plt.grid(True)
+plt.legend()
+plt.show()
+
+plt.figure(figsize=(12, 6))
+for i in [2,3,4]:
+    vrange = np.linspace(-100,100,100)
+    plt.plot(vrange, params.ainf(i,vrange), label=pretty_names(i - 1))
+    plt.plot(vrange,params.binf(i,vrange), label=pretty_names(i + 2))
+plt.title('Channel Behaviour vs Voltage')
+plt.xlabel('Voltage (mV)')
 plt.ylabel('Activated Channels Proportion')
 plt.grid(True)
 plt.legend()
