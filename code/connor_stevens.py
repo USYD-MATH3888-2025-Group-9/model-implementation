@@ -1,6 +1,7 @@
 # Dependencies: numpy, matplotlib, scipy
 
 # the variables a2,a3 and a4 diverge to positive infinity after 10ms.
+# any parameters marked 'trial' have testing values rather than real ones
 
 import numpy as np
 from scipy.integrate import solve_ivp
