@@ -6,6 +6,7 @@ from scipy.optimize import fsolve
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import warnings # Import the warnings module
+import random
 
 # --- Setup
 
@@ -267,10 +268,12 @@ ax4.grid(True)
 ax4.legend()
 
 plt.savefig("plots")
-plt.show()
+# plt.show()
 ###################
 # Steady states
 ###################
+
+discards = 0
 
 all_bins = []
 for tol in range(1000,4000):
@@ -291,6 +294,7 @@ for tol in range(1000,4000):
             if i == 0 and (steady[0] > 500 or steady[0] < -500):
                 will_break = True
         if will_break:
+            discards += 1
             break
         #print(steady)
         if len(bins) == 0:
@@ -313,12 +317,14 @@ for b in all_bins:
     if len(b) == 1:
         #print("valid",b)
         bins_first.append(b[0])
-    elif len(b) == 0:
-        #print("empty")
-    else:
-        #print("strange",len(b),b)
+#     elif len(b) == 0:
+#         print("empty")
+#     else:
+#         print("strange",len(b),b)
 
 print("average",np.average(np.array(bins_first),axis=0)) #yes, this is horrid
+
+print(f"# discards {discards}")
 
 ####################
 # Phase Planes
@@ -343,7 +349,7 @@ for i in pairs['2d']:
     ax.set_ylabel(pretty_names(i[1]))
     ax.grid(True)
     count += 1
-plt.show()
+#plt.show()
 
 gs2 = gridspec.GridSpec(2,3)
 fig2 = plt.figure(figsize=(24,12))
@@ -362,4 +368,4 @@ for i in pairs['3d']:
     ax.set_zlabel(pretty_names(i[2]))
     ax.grid(True)
     count += 1
-plt.show()
+#plt.show()

@@ -1,0 +1,107 @@
+\documentclass[10pt]{article}
+
+\usepackage{fullpage}
+\usepackage{setspace}
+\doublespacing
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{tikz}
+\usepackage{multicol}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage[linesnumbered,ruled,lined]{algorithm2e}
+\usepackage[backend=bibtex, style=verbose]{biblatex}
+\addbibresource{bibliography.bib}
+
+\newcommand\norm[1]{\left\lVert#1\right\rVert}
+\newcommand\abs[1]{\hspace*{2.5pt}\left|#1\right|}
+\newcommand\bracket[1]{\left(#1\right)}
+\newcommand\ceil[1]{\lceil#1\rceil}
+\newcommand\floor[1]{\lfloor#1\rfloor}
+\newcommand\todo[1]{\textcolor{red}{#1}}
+\newcommand\thm[1]{\textbf{Theorem: } #1\\}
+\newcommand\lem[1]{\textbf{Lemma: } #1\\}
+\newcommand\cor[1]{\textbf{Corollary: } #1\\}
+\newcommand\rmk[1]{\textbf{Remark: } #1\\}
+\newcommand\prf[1]{\textbf{Proof: } #1\\}
+\newcommand\ep{\hfill\square}
+
+\newcommand\CS{Connor-Steven }
+\newcommand\len{len}
+
+\renewcommand{\thesubsection}{\thesection.\alph{subsection}}
+
+\begin{document}
+
+	\title{Documentation on the finding of steady-state parameter solutions for the Connor-Stevens model for MATH3888}
+	\author{Albert Stark, Kyle George}
+	\date{17-09-2025}
+	\maketitle
+
+	A sketch of a programme for finding the steady state parameters for the Connor-Stevens\footcite{CSart} model is described below.
+	We seek to find such parameters so as to better understand the physicality of what the model is able to reflect.
+	
+	\section{The model}
+	Recall the Connor-Stevens model as 
+	\begin{align*}
+            I(t)&=C_m\frac{dv}{dt}+\sum_{j=1}^4 \overline{g}_j (A_j(V,t))^jB_j(V,t)(V-V_j)\\
+			A_j(V,\infty)&=\tau_{Aj}\frac{dA_j(V,t)}{dt}+A_j(V,t)\\
+            B_j(V,\infty)&=\tau_{Bj}\frac{dB_j(V,t)}{dt}+B_j(V,t)
+    \end{align*}
+	Note that this is a 9 dimensional model, this makes standard methods of finding steady states via linear nullclines as taught so far in MATH3888 intractable, if not impossible. Hence we seek an alternative solution.
+
+	\newpage
+	\section{The Program}
+
+	We aim to define an algorithm that will solve the \CS model for many randomised input parameters, and then converge to some steady state. This parameter set is then characterised as having generated that particular solution, and so it is in the ``area'' of that particular steady state. This is then run many times for many randomised parameters, and the ultimate steady state is returned as the average of many steady states calculated over the course of the calculations. Values, and consequently their paths are discarded if they ever leave particular bounds set for them, determined by physicality.
+
+	\begin{algorithm}
+		Define $\CS(t,\mathcal{P}) : \mathbb{R}^8\rightarrow\mathbb{R}^8$ as the Connor-Steven model\\
+		$\mathfrak{B} := \{\hspace*{2.5pt}\}$\\
+		\ForEach(){$\tau \in \{100, 100.1, 100.2, \cdots, 400\}$}{
+			Initialise $\mathfrak{b}_\tau := \{\}$ as the list of "bins" for this iteration\\
+			\ForEach(){$0 \le j < 100000$}{
+				Initialise $\mathcal{P} \in (-100,100)\times(0,1)^6$ randomly as initial parameter vector for this iteration\\
+				Define $\mathcal{S}(t) := $ for $\CS(t,\mathcal{P})$, $\mathcal{S}_\infty := \lim_{t\rightarrow\infty} \mathcal{S}(t)$\\
+				\For{$\{V, K_{on}, Na_{on}, Comb_{on}, K_{off}, Na_{off}, Comb_{off}\} \in \CS(t,\mathcal{P})$}{
+					\If{$\abs{V} > 500$ or $ \{K_{on}, Na_{on}, Comb_{on}, K_{off}, Na_{off}, Comb_{off}\}\notin[0,1]^6 $}{
+						break
+					}
+				}
+				\If{$\len(\mathfrak{b}_\tau) = 0$}{
+					$\mathfrak{b}_\tau \longleftarrow (\mathcal{S}_\infty)$
+				} \Else {
+					\ForAll{$b\in\mathfrak{b}$}{
+						\If{$\norm{\mathcal{S}_\infty - b} < \tau$}{
+							$\mathfrak{b}_\tau\longleftarrow \mathfrak{b}_\tau \cup\mathcal{S}_\infty$\\
+						break	
+					}
+					}
+				
+				}				
+			}
+		
+			$\mathfrak{B} \leftarrow \mathfrak{B} \hspace*{1.5pt}\cup \mathfrak{b}_\tau$
+		}
+		\ForAll{$i \in \mathfrak{B}$}{
+			$\mathcal{V}_{lim} =  \bracket{\sum i} / \abs{\mathfrak{B}}$\\
+		}
+		\Return{$\mathcal{V}_{lim}$}
+	\end{algorithm}
+
+	\newpage
+	
+	\begin{figure}[!h]
+		\centering
+		\includegraphics[height=9cm]{equisse}
+		\caption{Sketch of the idea of the program, points are generated in parameter space, then their corresponding solution in output space is tracked and categorised as at a particular steady state if within a certain tollerance, with rejection for non physical solutions from these parameters.}
+		\label{fig:equisse}
+	\end{figure}
+	
+	
+	It goes without much saying that this is not a particularly efficient algorithm. As a crude analysis, in the worst case we have to run $3000\times100000$ lots of the \CS process, and then loop over all of them if they all uniquely converge. We are fortunate in that this turns out to be quite happily convergent for our implementation in Python. We are helped by the fact that we always (as evidenced by numerical experimentation) have a discard at some point. These discarded values are based on either the voltage being extremely nonphysical (on the order of half a volt, in a single cell remember) or the proportion quantities being outside the range $[0,1]\subset\mathbb{R}$, which is nonmathematical if it occurs. Further optimisation is possible with the use of bounding boxes and planes to determine if a point is beyond a known set of non-phyisical parameters, but this may be difficult given non-linearity.
+	
+	\vfill
+	\printbibliography
+\end{document}

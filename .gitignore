@@ -9,4 +9,8 @@
 *.run.xml
 *.blg
 *.bbl
+*.bib
+*.bcf
+!bibliography.bib
+!bib.bib
 main-blx.bib
