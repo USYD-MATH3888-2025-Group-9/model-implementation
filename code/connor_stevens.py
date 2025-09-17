@@ -266,5 +266,5 @@ ax4.set_ylabel('Rate constant (ms)')
 ax4.grid(True)
 ax4.legend()
 
-#plt.savefig("plots")
+plt.savefig("plots")
 plt.show()
