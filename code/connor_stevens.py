@@ -275,6 +275,15 @@ plt.savefig("plots")
 ###################
 
 def blob_sort(points, tolerance,verbose=False,find_confidence=False):
+    '''
+    Sorts the given N-dimensional points into piles based on the Euclidean norm,
+    within the given tolerance and within a sensible range expectation.
+    Parameter verbose, when true, causes every test and the total discarded due to out of range
+    points to be printed.
+    Returns: if find_confidence...
+    True: tuple: (piles:array shape (#piles,N),confidences (#piles))
+    False: piles: array shape (#piles,N)
+    '''
     discards = 0
     bins = []
     confidences = []
@@ -314,6 +323,9 @@ def blob_sort(points, tolerance,verbose=False,find_confidence=False):
         return bins
 
 def generate_points():
+    '''
+    Generates each guess of a steady state from random starting points.
+    '''
     random_start = []
     for i in [0,1,2,3,4,5,6]:
         if i == 0 :
@@ -324,6 +336,11 @@ def generate_points():
     return steady
 
 def find_steady_states(verbose=False):
+    '''
+    Find the steady states for the whole system.
+    The verbose parameter controls if the full output is given for all functions (True) or if nothing
+    is to be printed (False), which may improve efficiency.
+    '''
     all_bins = []
     start_time = time.time()
     if verbose: print("Stage 1")
