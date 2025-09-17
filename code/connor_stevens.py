@@ -268,3 +268,98 @@ ax4.legend()
 
 plt.savefig("plots")
 plt.show()
+###################
+# Steady states
+###################
+
+all_bins = []
+for tol in range(1000,4000):
+    tolerance = tol / 10 #to test fractional tolerances between 100, 400 by 0.1
+    bins = []
+    for j in range(100000):
+        random_start = []
+        for i in [0,1,2,3,4,5,6]:
+            if i == 0 :
+                random_start.append((random.random() - 0.5) * 200)
+            else:
+                random_start.append(random.random())
+        steady = fsolve(lambda x: connor_stevens(0,x,params),np.array(random_start))
+        will_break = False
+        for i in range(len(steady)):
+            if i != 0 and (steady[i] > 1 or steady[i] < 0):
+                will_break = True
+            if i == 0 and (steady[0] > 500 or steady[0] < -500):
+                will_break = True
+        if will_break:
+            break
+        #print(steady)
+        if len(bins) == 0:
+            bins.append(np.array([steady]))
+        else:
+            is_done = False
+            for b in range(len(bins)):
+                norm = np.linalg.norm(bins[b][0] - steady)
+                if norm < tolerance:
+                    np.append(bins[b],steady)
+                    is_done = True
+                    break
+            if not is_done:
+                bins.append(np.array([steady]))
+    #print(tolerance,"gives",bins)
+    all_bins.append(bins)
+
+bins_first = []
+for b in all_bins:
+    if len(b) == 1:
+        #print("valid",b)
+        bins_first.append(b[0])
+    elif len(b) == 0:
+        #print("empty")
+    else:
+        #print("strange",len(b),b)
+
+print("average",np.average(np.array(bins_first),axis=0)) #yes, this is horrid
+
+####################
+# Phase Planes
+####################
+
+pairs = {'2d':[[0,1],[0,2],[0,3],[0,4],[0,5],[0,6]],
+        '3d':[[1,2,3],[4,5,6],[0,1,4],[0,2,5],[0,3,6]]}
+
+gs = gridspec.GridSpec(2,3)
+fig = plt.figure(figsize=(24,12))
+axes = []
+for j in [0,1]:
+    for k in [0,1,2]:
+        axes.append(fig.add_subplot(gs[j,k]))
+
+count = 0
+for i in pairs['2d']:
+    ax = axes[count]
+    ax.plot(sol.y[i[0]],sol.y[i[1]])
+    ax.set_title('Phase space: ' + pretty_names(i[0]) + ' and ' + pretty_names(i[1]))
+    ax.set_xlabel(pretty_names(i[0]))
+    ax.set_ylabel(pretty_names(i[1]))
+    ax.grid(True)
+    count += 1
+plt.show()
+
+gs2 = gridspec.GridSpec(2,3)
+fig2 = plt.figure(figsize=(24,12))
+axes2 = []
+for j in [0,1]:
+    for k in [2,1,0]:
+        axes2.append(fig2.add_subplot(gs2[j,k],projection='3d'))
+
+count = 0
+for i in pairs['3d']:
+    ax = axes2[count]
+    ax.plot(sol.y[i[0]],sol.y[i[1]],sol.y[i[2]])
+    ax.set_title('Phase space: ' + pretty_names(i[0]) + ' and ' + pretty_names(i[1]) + ' and ' + pretty_names(i[2]))
+    ax.set_xlabel(pretty_names(i[0]))
+    ax.set_ylabel(pretty_names(i[1]))
+    ax.set_zlabel(pretty_names(i[2]))
+    ax.grid(True)
+    count += 1
+plt.show()
