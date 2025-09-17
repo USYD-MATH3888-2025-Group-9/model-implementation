@@ -273,20 +273,12 @@ plt.savefig("plots")
 # Steady states
 ###################
 
-discards = 0
-
-all_bins = []
-for tol in range(1000,4000):
-    tolerance = tol / 10 #to test fractional tolerances between 100, 400 by 0.1
+def blob_sort(points, tolerance,verbose=False,find_confidence=False):
+    discards = 0
     bins = []
-    for j in range(100000):
-        random_start = []
-        for i in [0,1,2,3,4,5,6]:
-            if i == 0 :
-                random_start.append((random.random() - 0.5) * 200)
-            else:
-                random_start.append(random.random())
-        steady = fsolve(lambda x: connor_stevens(0,x,params),np.array(random_start))
+    confidences = []
+    for steady in points:
+        if verbose: print(steady)
         will_break = False
         for i in range(len(steady)):
             if i != 0 and (steady[i] > 1 or steady[i] < 0):
@@ -298,6 +290,7 @@ for tol in range(1000,4000):
             break
         #print(steady)
         if len(bins) == 0:
+            confidences.append(1)
             bins.append(np.array([steady]))
         else:
             is_done = False
@@ -305,26 +298,65 @@ for tol in range(1000,4000):
                 norm = np.linalg.norm(bins[b][0] - steady)
                 if norm < tolerance:
                     np.append(bins[b],steady)
+                    confidences[b] += 1
                     is_done = True
                     break
             if not is_done:
+                confidences.append(1)
                 bins.append(np.array([steady]))
-    #print(tolerance,"gives",bins)
-    all_bins.append(bins)
+    confidences = np.array(confidences)
+    confidences = confidences / np.sum(confidences)
+    if verbose: print("Discards:",discards)
+    if find_confidence:
+        return (bins,confidences)
+    else :
+        return bins
 
-bins_first = []
-for b in all_bins:
-    if len(b) == 1:
-        #print("valid",b)
-        bins_first.append(b[0])
-#     elif len(b) == 0:
-#         print("empty")
-#     else:
-#         print("strange",len(b),b)
+def generate_points():
+    random_start = []
+    for i in [0,1,2,3,4,5,6]:
+        if i == 0 :
+            random_start.append((random.random() - 0.5) * 200)
+        else:
+            random_start.append(random.random())
+    steady = fsolve(lambda x: connor_stevens(0,x,params),np.array(random_start))
+    return steady
 
-print("average",np.average(np.array(bins_first),axis=0)) #yes, this is horrid
+def find_steady_states(verbose=False):
+    all_bins = []
+    start_time = time.time()
+    if verbose: print("Stage 1")
+    for tol in range(100,400):
+        tolerance = tol / 1 #to test fractional tolerances between 100, 400 by 0.1
+        if verbose: print(tolerance,"time",time.time() - start_time)
+        points = np.array([generate_points() for i in range(1000)])
+        bins = blob_sort(points,tolerance)
+        #print(tolerance,"gives",bins)
+        all_bins.append(bins)
+        if verbose: print(bins)
 
-print(f"# discards {discards}")
+    if verbose: print("Stage 2",time.time() - start_time)
+    bins_first = []
+    for b in all_bins:
+        if len(b) == 1:
+            if verbose: print("valid",b)
+            bins_first.append(b[0])
+        elif len(b) == 0:
+            if verbose: print("empty")
+        else:
+            if verbose: print("strange",len(b),b)
+    final_tolerance = 10
+    if verbose: print("Stage 3",time.time() - start_time)
+    for i in range(len(bins_first)):
+        bins_first[i] = bins_first[i][0]
+    if verbose: print(bins_first)
+    final_steady_blobs,final_confidence = blob_sort(bins_first,final_tolerance,verbose=verbose,find_confidence=True)
+    if verbose: print("Complete, time",time.time() - start_time)
+    return (final_steady_blobs,final_confidence)
+
+steady_state,confidence = find_steady_states(verbose=True)
+print("Steady state:\n",steady_state)
+print("Confidence:",confidence)
 
 ####################
 # Phase Planes
