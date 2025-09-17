@@ -18,6 +18,7 @@ def sigmoid(x,a,b,c,d):
 # --- Physiological Parameters ---
 class Parameters:
     cm = 14 # trial, 14pF
+    disabled = [0,1,1,1,1] #blank,blank,2,3,4
     @staticmethod
     def v(j): #mV
         '''
@@ -29,7 +30,7 @@ class Parameters:
             case 2:
                 return -60
             case 3:
-                return 45
+                return -45
             case 4:
                 return -63
     @staticmethod
@@ -57,13 +58,13 @@ class Parameters:
                 return 1 #unused
             case 2:
                 #capped linear
-                m = (0.3-0.06) / (-50)
-                b = -m * (-40) + 0.3
+                m = (300-60) / (-50)
+                b = -m * (-40) + 300
                 out = linear(v,m,b)
                 if v < -40:
-                    out = 0.3
-                if v > -10:
-                    out = 0.06
+                    out = 300
+                if v > 10:
+                    out = 60
                 #print(out)
                 return out
             case 3:
@@ -73,7 +74,7 @@ class Parameters:
                 d = -4.650
                 out = sigmoid(v,a,b,c,d)
                 #print(out)
-                return out
+                return out + 1 # random constant from paper
             case 4:
                 return 12 
     @staticmethod
@@ -85,13 +86,13 @@ class Parameters:
             case 1:
                 return 1 #unused
             case 2:
-                return 0.05
+                return 50
             case 3:
                 a = 0.3346
                 b = 0.003225
                 c = -1.9342
                 d = -4.045
-                return sigmoid(v,a,b,c,d)
+                return sigmoid(v,a,b,c,d) + 5 # random constant from paper
             case 4:
                 return 235 
     @staticmethod
@@ -104,16 +105,16 @@ class Parameters:
             case 1:
                 return 1
             case 2:
-                out = np.sqrt(sigmoid(v,1,1,0,6))
+                out = np.sqrt(sigmoid(v,1,1,0,-10))
                 #print(out)
                 return out
             case 3:
-                out = np.power(sigmoid(v,1,1,-10,20),(1 / 3)) 
+                out = np.power(sigmoid(v,1,1,-10,5),(1 / 3)) 
                 #a = 1 should be 2 according to the paper but that doesn't make sense
                 #print(out)
                 return out
             case 4:
-                out = np.power(sigmoid(v,1,1,-10,5),(1 / 4)) 
+                out = np.power(sigmoid(v,1,1,-10,20),(1 / 4)) 
                 #a = 1 should be 2 according to the paper but that doesn't make sense
                 #print(out)
                 return out
@@ -129,11 +130,12 @@ class Parameters:
                 return sigmoid(v,1,1,0,6)
             case 3:
                 #a = 1 should be 2 according to the paper but that doesn't make sense
-                return sigmoid(v,1,1,-10,-20)
+                return sigmoid(v + 20,1,1,-10,-5)
             case 4:
-                return sigmoid(v + 60,1,1,0,-6)
+                return sigmoid(v + 60,1,1,0,-20)
     @staticmethod
     def I(t): #applied current
+        #return 0
         if t > 80:
             return 15
         elif t > 50:
@@ -168,13 +170,13 @@ def connor_stevens(t, x, p):
                 return b4
     summed_terms = 0
     for j in [1,2,3,4]:
-        summed_terms += (p.g(j)) * (a(j) ** j) * b(j) * (v - p.v(j))
+        summed_terms += (p.g(j)) * (a(j) ** j) * b(j) * (v - p.v(j)) * p.disabled[j]
     dvdt = (1 / p.cm) * (p.I(t) - summed_terms)
     dadt = [0,0] # so that the indexes line up
     dbdt = [0,0]
     for j in [2,3,4]:
-        dajdt = (1 / p.atau(j,v)) * (p.ainf(j,v) - a(j))
-        dbjdt = (1 / p.btau(j,v)) * (p.binf(j,v) - b(j))
+        dajdt = (1 / p.atau(j,v)) * (p.ainf(j,v) - a(j)) * p.disabled[j]
+        dbjdt = (1 / p.btau(j,v)) * (p.binf(j,v) - b(j)) * p.disabled[j]
         dadt.append(dajdt)
         dbdt.append(dbjdt)
     out = [dvdt,dadt[2],dadt[3],dadt[4],dbdt[2],dbdt[3],dbdt[4]]
@@ -183,7 +185,7 @@ def connor_stevens(t, x, p):
     
 # 2. Solve Numerically
 params = Parameters()
-V0 = [-40,0.1,0.1,0.1,0.1,0.1,0.1]
+V0 = [-40,0.9,0.9,0.9,0.9,0.9,0.9]
 t_span = [0, 100]
 t_eval = np.linspace(t_span[0], t_span[1], 300)
 sol = solve_ivp(connor_stevens, t_span, V0, args=(params,), dense_output=True, t_eval=t_eval, method='RK45')
@@ -208,11 +210,14 @@ def pretty_names(index):
             return 'b4: Combined Off'
 
 
-gs = gridspec.GridSpec(2,2)
+gs = gridspec.GridSpec(2,3)
 fig = plt.figure(figsize=(24,12))
 ax1 = fig.add_subplot(gs[0,0])
 ax2 = fig.add_subplot(gs[1,0])
-ax3 = fig.add_subplot(gs[:,1])
+ax3 = fig.add_subplot(gs[0,1])
+ax4 = fig.add_subplot(gs[1,1])
+ax5 = fig.add_subplot(gs[0,2])
+ax6 = fig.add_subplot(gs[1,2])
 #axs[0,0].plot(sol.t, sol.y[0])
 
 ax1.plot(sol.t, sol.y[0], label=pretty_names(0))
@@ -231,7 +236,7 @@ ax2.grid(True)
 ax2.legend()
 
 for i in [2,3,4]:
-    vrange = np.linspace(-100,100,100)
+    vrange = np.linspace(-100,25,100)
     ax3.plot(vrange, params.ainf(i,vrange), label=pretty_names(i - 1))
     ax3.plot(vrange,params.binf(i,vrange), label=pretty_names(i + 2))
 ax3.set_title('Channel Behaviour vs Voltage')
@@ -240,5 +245,17 @@ ax3.set_ylabel('Activated Channels Proportion')
 ax3.grid(True)
 ax3.legend()
 
-plt.savefig("plots")
+for i in [2,3,4]:
+    vrange = np.linspace(-100,25,100)
+    ataus = np.array([params.atau(i,v) for v in vrange])
+    btaus = np.array([params.btau(i,v) for v in vrange])
+    ax4.plot(vrange,ataus, label=pretty_names(i - 1))
+    ax4.plot(vrange,btaus, label=pretty_names(i + 2))
+ax4.set_title('Channel Behaviour vs Voltage')
+ax4.set_xlabel('Voltage (mV)')
+ax4.set_ylabel('Rate constant (ms)')
+ax4.grid(True)
+ax4.legend()
+
+#plt.savefig("plots")
 plt.show()
