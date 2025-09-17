@@ -16,10 +16,12 @@ def plot_values(dataset):
     nvals = df[df.columns[4]]
     currentvals = df[df.columns[5]]
 
-    gs = gridspec.GridSpec(2,1, height_ratios=[5,1])
-    fig = plt.figure(figsize=(18,6))
+    gs = gridspec.GridSpec(3,1, height_ratios=[4,2,1])
+    fig = plt.figure(figsize=(16,10))
     ax1 = fig.add_subplot(gs[0,0])
     ax2 = fig.add_subplot(gs[1,0])
+    ax3 = fig.add_subplot(gs[2,0])
+
     ax1.plot(tvals, mvals, label = "m")
     ax1.plot(tvals, hvals, label = "h")
     ax1.plot(tvals, nvals, label = "n")
@@ -29,11 +31,17 @@ def plot_values(dataset):
     ax1.grid()
     ax1.legend()
 
-    ax2.plot(tvals, currentvals)
-    ax2.set_xlabel("time (ms)")
-    ax2.set_ylabel("Current (uA cm^-2)")
-    ax2.set_ybound(-1,12)
 
+    ax2.plot(tvals, VmVvals)
+    ax2.set_xlabel("time (ms)")
+    ax2.set_ylabel("VmVals")
+
+    ax3.plot(tvals, currentvals)
+    ax3.set_xlabel("time (ms)")
+    ax3.set_ylabel("Current (uA cm^-2)")
+    ax3.set_ybound(-1,12)
+
+    fig.suptitle("plot of values from the 'giant_squid_hh.csv' dataset")
     plt.savefig("squiddataplots")
     #plt.show()
 
