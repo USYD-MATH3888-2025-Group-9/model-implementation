@@ -208,6 +208,15 @@ def pretty_names(index):
             return 'b4: Combined Off'
 
 
+#####################
+# TODO
+# - Albert to search for more sensible parameters
+#       - Checking from Tims dataset & trying to line things up from there for accuracy
+#       - Parameter regression via least squares????
+# - Kyle to start on phaseplane/box analysis
+# - Tim + Calvin continuing to search for datasets
+#####################
+
 gs = gridspec.GridSpec(2,2)
 fig = plt.figure(figsize=(24,12))
 ax1 = fig.add_subplot(gs[0,0])
