@@ -81,7 +81,7 @@ class PowerSigmoidal:
     xshift = 0
     yshift = 0
     def run(self,x):
-        return np.pow(sigmoid(x + self.xshift,self.a,self.b,self.c,self.d),self.power) + self.yshift
+        return np.power(sigmoid(x + self.xshift,self.a,self.b,self.c,self.d),self.power) + self.yshift
     def __init__(self,a,b,c,d,power,xshift=0,yshift=0):
         self.a = a
         self.b = b
@@ -357,6 +357,7 @@ def basic_system_data():
     ax5.legend()
     #plt.savefig("plots")
     plt.show()
+    return sol
 
 plot_steady_min_confidence = 0.7
 
@@ -439,10 +440,13 @@ def find_steady_states(verbose=False,param=Parameters(),tolerance_max=400):
     if verbose: print("Complete, time",time.time() - start_time)
     return (final_steady_blobs,final_confidence)
 
-def phase_planes():
+def phase_planes(sol):
+    
     steady_state,confidence = find_steady_states(verbose=False,tolerance_max=110)
-    print("Steady state:\n",steady_state)
-    print("Confidence:",confidence)
+    print("Steady state:")
+    np.set_printoptions(precision=2)
+    for i in range(len(steady_state)):
+        print(f" {i+1} : \033[32;1;4m{steady_state[i]} \033[0m , \033[31;1m conf {confidence[i]:.2f} \033[0m")
     
     pairs = {'2d':[[0,1],[0,2],[0,3],[0,4],[0,5],[0,6]],
             '3d':[[1,2,3],[4,5,6],[0,1,4],[0,2,5],[0,3,6]]}
@@ -456,20 +460,19 @@ def phase_planes():
     
     count = 0
     for i in pairs['2d']:
-        ax = axes[count]
-        ax.plot(sol.y[i[0]],sol.y[i[1]])
+        ax1 = axes[count]
+        ax1.plot(sol.y[i[0]],sol.y[i[1]])
         for s in range(len(steady_state)):
             if confidence[s] < plot_steady_min_confidence:
                 print("ignoring steady state", steady_state[s],f"because confidence {confidence[s]:.2f} is less than {plot_steady_min_confidence:.2f}")
                 break
-            ax.plot(steady_state[s][0][i[0]],steady_state[s][0][i[1]],'go', ms=10, label=f'Steady State, confidence {confidence[s]:.2f}')
-        ax.set_title('Phase space: ' + pretty_names(i[0]) + ' and ' + pretty_names(i[1]))
-        ax.set_xlabel(pretty_names(i[0]))
-        ax.set_ylabel(pretty_names(i[1]))
-        ax.grid(True)
-        ax.legend()
+            ax1.plot(steady_state[s][0][i[0]],steady_state[s][0][i[1]],'go', ms=10, label=f'Steady State, confidence {confidence[s]:.2f}')
+        ax1.set_title('Phase space: ' + pretty_names(i[0]) + ' and ' + pretty_names(i[1]))
+        ax1.set_xlabel(pretty_names(i[0]))
+        ax1.set_ylabel(pretty_names(i[1]))
+        ax1.grid(True)
+        ax1.legend()
         count += 1
-    plt.show()
     
     gs2 = gridspec.GridSpec(2,3)
     fig2 = plt.figure(figsize=(24,12))
@@ -480,19 +483,19 @@ def phase_planes():
     
     count = 0
     for i in pairs['3d']:
-        ax = axes2[count]
-        ax.plot(sol.y[i[0]],sol.y[i[1]],sol.y[i[2]])
+        ax2 = axes2[count]
+        ax2.plot(sol.y[i[0]],sol.y[i[1]],sol.y[i[2]])
         for s in range(len(steady_state)):
             if confidence[s] < plot_steady_min_confidence: 
                 print("ignoring steady state", steady_state[s],f"because confidence {confidence[s]:.2f} is less than {plot_steady_min_confidence:.2f}")
                 break
-            ax.plot(steady_state[s][0][i[0]],steady_state[s][0][i[1]],steady_state[s][0][i[2]],'go', ms=10, label=f'Steady State, confidence {confidence[s]:.2f}')
-        ax.set_title('Phase space: ' + pretty_names(i[0]) + ' and ' + pretty_names(i[1]) + ' and ' + pretty_names(i[2]))
-        ax.set_xlabel(pretty_names(i[0]))
-        ax.set_ylabel(pretty_names(i[1]))
-        ax.set_zlabel(pretty_names(i[2]))
-        ax.grid(True)
-        ax.legend()
+            ax2.plot(steady_state[s][0][i[0]],steady_state[s][0][i[1]],steady_state[s][0][i[2]],'go', ms=10, label=f'Steady State, confidence {confidence[s]:.2f}')
+        ax2.set_title('Phase space: ' + pretty_names(i[0]) + ' and ' + pretty_names(i[1]) + ' and ' + pretty_names(i[2]))
+        ax2.set_xlabel(pretty_names(i[0]))
+        ax2.set_ylabel(pretty_names(i[1]))
+        ax2.set_zlabel(pretty_names(i[2]))
+        ax2.grid(True)
+        ax2.legend()
         count += 1
     plt.show()
 
@@ -697,11 +700,17 @@ def modifier(p,m):
 # Actually run the system #
 ###########################
 
-basic_system_data()
-phase_planes()
-test = Bifurcator(modifier,Parameters(),np.linspace(-35,35,50))
-steady_state_results = perform_bifurcation(test,max_tolerance=50)
-eigenvalue_plot(test,steady_state_results,continuous_fake=True)
+def main():
+    # basic_system_data()
+    soln = basic_system_data()
+    phase_planes(soln)
+    test = Bifurcator(modifier,Parameters(),np.linspace(-35,35,50))
+    steady_state_results = perform_bifurcation(test,max_tolerance=50)
+    eigenvalue_plot(test,steady_state_results,continuous_fake=True)
+
+
+if __name__ == "__main__":
+    main()
 
 #it still swaps the values occasionally
 #damnit
