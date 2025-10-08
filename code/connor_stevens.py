@@ -12,6 +12,7 @@ import time
 import itertools
 import warnings
 import copy #because I need it to clone the parameter instances
+import concurrent.futures
 
 # --- Setup
 def linear(x,m,b):
@@ -503,105 +504,141 @@ def phase_planes(sol):
         count += 1
     plt.show()
 
-def unscrambled(current,past,past2):
-    '''
-    Sorts the current eigenvalues based on past experience.
-    '''
-    #grind through the options
-    min_distance = None
-    min_order = None
-    counter = 0
-    past_grads = []
-    for j in range(len(past)):
-        past_grads.append((past[j].imag - past2[j].imag) / (past[j].real - past2[j].real))
-    for option in itertools.combinations(range(len(past)),len(current)):
-        this_distance = 0
-        this_option = option
-        c_count = 0
-        for j in option:
-            past_current_grad = (past[j].imag - current[j].imag) / (past[j].real - current[j].real)
-            this_distance += abs(past_grads[j] - past_current_grad)
-            c_count += 1
-        if min_distance == None or min_distance >= this_distance:
-            min_distance = this_distance
-            min_order = option
-        
-    #using the minimum, figure out the order.
-    print(min_order)
-    out = []
-    for i in min_order:
-        out.append(current[i])
-    return out
-    
 class Bifurcator:
     mod = None # modifier, converts parameter type to a new one with required value
     base = Parameters()
     model = connor_stevens
     p_range = np.linspace(0,100,100)
-    def steady_states(self,verbose=False,max_tolerance=50):
+    threaded = False
+    task_name = None
+    
+    @staticmethod
+    def _steady_states_task(new,i):
+        steady,confidence = find_steady_states(param=new,tolerance_max=tolerance_max)
+        confidence_sorted = confidence.tolist()
+        confidence_sorted.sort(reverse=True)
+        confidence_finder = {}
+        for j in range(len(steady)):
+            confidence_finder[steady[j][0][0]] = confidence[j]
+        steady.sort(reverse=True,key=lambda x: confidence_finder[x[0][0]])
+        #print(steady,confidence_sorted)
+        return [steady,confidence_sorted,i]
+    
+    def steady_states(self,tolerance_max=50):
         '''
         Compute steady states for this bifurcation setup
         '''
-        def _steady_states_task(new,i,verbose):
-            steady,confidence = find_steady_states(param=new,tolerance_max=max_tolerance)
-            confidence_sorted = confidence.tolist()
-            confidence_sorted.sort(reverse=True)
-            confidence_finder = {}
-            for j in range(len(steady)):
-                confidence_finder[steady[j][0][0]] = confidence[j]
-            steady.sort(reverse=True,key=lambda x: confidence_finder[x[0][0]])
-            if verbose: print(steady,confidence_sorted)
-            return [steady,confidence_sorted,i]
-        return self.generate_modified(lambda new,i: _steady_states_task(new,i,verbose),verbose)
-    def eigenvalue_dance(self,var_range,verbose=False):
+        if self.threaded:
+            self.task_name = '_steady_states_task'
+            return self.generate_modified_threaded()
+        else:
+            return self.generate_modified(lambda new,i: _steady_states_task(new,i))
+    
+    @staticmethod
+    def _eigenvalue_dance_task(new,i,var_at_new):
+        out = []
+        for v in var_at_new:
+            jacob = jacobian(lambda x: connor_stevens(0,x,new),v).df
+            eig_data = eig(jacob,right=True)
+            evectors = eig_data[1]
+            evals = eig_data[0]
+            if verbose: print("eigenvalues",evals)
+            out.append(np.array(evals))
+        return [out,i]
+    
+    def eigenvalue_dance(self,var_range,sort_v_index):
         '''
         Find and trace the eigenvalues of the Jacobian for the value
         of the variables in var_range.
         '''
-        def _eigenvalue_dance_task(new,i,var_at_new,verbose):
-            jacob = jacobian(lambda x: connor_stevens(0,x,new),var_at_new).df
-            eig_data = eig(jacob,right=True)
-            evectors = eig_data[1]
-            evals = eig_data[0]
-            if verbose: print(f"eigenvalues \033[31;1m {evals} \033[m ")
-            return [np.array(evals),i]
-        evals_list = self.generate_modified(lambda new,i: _eigenvalue_dance_task(new,i,var_range[i],verbose),verbose)
-        #now fix the ordering
-        second = False
-        last_evals = np.array([])
-        last2_evals = np.array([])
-        final_evals = []
-        for ev in evals_list:
-            e = ev[0]
-            print(e,last_evals,last2_evals)
-            fixed_e = unscrambled(e,last_evals,last2_evals) if len(last_evals) != 0 and len(last2_evals) != 0 else e
-            last2_evals = last_evals
-            last_evals = fixed_e
-            final_evals.append([fixed_e,ev[1]])
-        return final_evals
+        evals_list = []
+        if self.threaded:
+            self.task_name = '_eigenvalue_dance_task'
+            evals_list = self.generate_modified_threaded()
+        else :
+            evals_list = self.generate_modified(lambda new,i: _eigenvalue_dance_task(new,i,var_range[i]))
+        #find the spot with the most channels
+        max_channels = 1
+        for i in evals_list:
+            if len(i[0]) > max_channels:
+                max_channels = len(i[0])
+        #replicate until every list has the same number of channels (the max)
+        for i in range(len(evals_list)):
+            while len(evals_list[i][0]) < max_channels:
+                evals_list[i][0].append(evals_list[i][0][-1]) #copies of the last one
+            #print("HERE")
+            key_list = list(var_range.keys())
+            var_values_by_evals = {str(evals_list[i][0][x]):var_range[key_list[x]][0][sort_v_index] for x in range(len(evals_list[i][0]))}
+            #print(evals_list[i][0])
+            evals_list[i][0].sort(key=lambda x: var_values_by_evals[str(x)])
+            #print(evals_list[i][0])
+        #now fix the ordering channel-by-channel
+        evals_by_channel = {}
+        for ch in range(max_channels):
+            second = False
+            last_evals = np.array([])
+            last2_evals = np.array([])
+            final_evals = []
+            for ev in evals_list:
+                e = ev[0][ch]
+                #print(e,last_evals,last2_evals)
+                fixed_e = unscrambled(e,last_evals,last2_evals) if len(last_evals) != 0 and len(last2_evals) != 0 else e
+                last2_evals = last_evals
+                last_evals = fixed_e
+                final_evals.append([fixed_e,ev[1]])
+            evals_by_channel[ch] = final_evals
+        return evals_by_channel
 
-    def generate_modified(self,task,verbose):
+    def generate_modified(self,task):
         '''
         Computes and returns the results of an arbitrary task
-        over the given parameter set.
+        over the given parameter set, without threading.
 
         task: (Parameters,p) -> Any for p in p_range
         '''
         out_list = []
         counter = 0
         for i in self.p_range:
-            if verbose: print(f"count\033[95m {counter} \033[m")
+            if verbose: print("count",counter)
             new_entry = copy.deepcopy(self.base)
             new_entry = self.mod(new_entry,i)
-            if verbose: print(f"running {self.p_range[counter]} ")
+            if verbose: print("running",self.p_range[counter])
             out_list.append(task(new_entry,i))
             counter += 1
         return out_list
+
+    def generate_modified_threaded(self):
+        '''
+        Computes and returns the results of an arbitrary task
+        over the given parameter set, with threading.
+
+        task: (Parameters,p) -> Any for p in p_range
+        '''
+        out_list = []
+        with concurrent.futures.ProcessPoolExecutor(max_workers=4) as executor:
+            results = [executor.submit(self._generate_modified_task,c) for c in range(len(self.p_range))]
+            for r in concurrent.futures.as_completed(results):
+                out_list.append(r.result())
+        return out_list
     
-    def __init__(self,mod,base,p_range):
+    def _generate_modified_task(self,count):
+        i = self.p_range[counter]
+        if verbose: print("count",counter)
+        new_entry = copy.deepcopy(self.base)
+        new_entry = self.mod(new_entry,i)
+        if verbose: print("running",i)
+        match self.current_task:
+            case '_steady_states_task':
+                return self._steady_states_task(new_entry,i)
+            case '_eigenvalue_dance_task':
+                return self._eigenvalue_dance_task(new_entry,i)
+        return self.current_task(new_entry,i)
+    
+    def __init__(self,mod,base,p_range,threaded):
         self.mod = mod
         self.base = base
         self.p_range = p_range
+        self.threaded = threaded
 
 def colours(index):
     match index:
@@ -620,101 +657,353 @@ def colours(index):
         case 6:
             return "black"
 
-def perform_bifurcation(test):
+def perform_bifurcation(test,tolerance_max=50):
+    bifurcate_results = test.steady_states(tolerance_max=tolerance_max)
+    return bifurcate_results
+
+def plot_bifurcation(bifurcate_results):
     fig = plt.figure(figsize=(12,6))
     ax = fig.add_subplot()
-    bifurcate_results = test.steady_states(verbose=True)
     for b in bifurcate_results:
         for a in range(len(b[0])):
-            ax.plot(b[2],b[0][a][0][0],"go",color=(b[1][a],0,0))
+            #if b[1][a] >= 0.7:
+            ax.plot(b[2],b[0][a][0][0],"o",color=(b[1][a],0,0))
     ax.set_ylabel(pretty_names(0))
     ax.set_xlabel("$V_4$")
     ax.grid(True)
     plt.show()
-    return bifurcate_results
-
+    
 class MissingStateError(Exception):
      def __init__(self, message="This is a custom error."):
         self.message = message
-        super().__init__(self.message) # Call the parent Exception's constructor
+        super().__init__(self.message)
 
 
-def eigenvalue_plot(test,ssr,continuous_fake=False):
+def eigenvalue_plot(test,ssr,sort_var_index,min_confidence_plot=0.7,continuous_fake=False):
     steady_states = {}
     last_index = None
+    max_channels = 1
     for i in ssr:
         if len(i[0]) != 0:
+            will_include = []
+            for x in range(len(i[0])):
+                if i[1][x] >= min_confidence_plot:
+                    will_include.append(i[0][x][0])
+            if len(will_include) > max_channels:
+                max_channels = len(will_include)
+    for i in ssr:
+        if len(i[0]) != 0:
+            will_include = []
+            for x in range(len(i[0])):
+                if i[1][x] >= min_confidence_plot:
+                    will_include.append(i[0][x][0])
+            if len(will_include) < max_channels:
+                if continuous_fake:
+                    if last_index != None:
+                        for ch in range(len(will_include),len(steady_states[last_index])):
+                            will_include.append(steady_states[last_index][ch])
+                        #print("Channel: Fake value used for",i[2],":",will_include)
+                    else:
+                        #print("Channel: Bad continuous fake used for",i[2])
+                        while len(will_include) < max_channels:
+                            will_include.append(will_include[0])
+                else:
+                    raise MissingStateError(message="Missing state info for value " + str(i) + " channel " + str(ch))
+            steady_states[i[2]] = will_include
             last_index = i[2]
-            steady_states[i[2]] = i[0][0][0]
         else:
             if continuous_fake:
                 steady_states[i[2]] = steady_states[last_index]
-                print("Fake value used for",i[2],steady_states[i[2]])
+                print("State: Fake value used for",i[2],":",steady_states[i[2]])
             else:
                 raise MissingStateError(message="Missing state info for value " + str(i))
-    gs = gridspec.GridSpec(2,2)
-    fig = plt.figure(figsize=(18,18))
-    ax = fig.add_subplot(gs[0,0],projection="3d")
-    ax2 = fig.add_subplot(gs[1,0])
-    ax3 = fig.add_subplot(gs[0,1])
-    ax4 = fig.add_subplot(gs[1,1])
-    bifurcate_results2 = test.eigenvalue_dance(steady_states)
-    for a in [0,1,2,3,4,5,6]:
-        pointx = []
-        pointy = []
-        pointz = []
-        for b in bifurcate_results2:
-            pointx.append(b[0][a].real)
-            pointy.append(b[0][a].imag)
-            pointz.append(b[1])
-        pointx = np.array(pointx)
-        pointy = np.array(pointy)
-        pointz = np.array(pointz)
-        ax.plot(pointx,pointy,pointz,color=colours(a),label="Eigenvalue " + str(a))
-        ax.plot(pointx[0],pointy[0],pointz[0],'o',color=colours(a),label="Start for " + str(a))
-        ax2.plot(pointx,pointy,color=colours(a),label="Eigenvalue " + str(a))
-        ax2.plot(pointx[0],pointy[0],'o',color=colours(a),label="Start for " + str(a))
-        ax3.plot(pointx,pointz,color=colours(a),label="Eigenvalue " + str(a))
-        ax3.plot(pointx[0],pointz[0],'o',color=colours(a),label="Start for " + str(a))
-        ax4.plot(pointy,pointz,color=colours(a),label="Eigenvalue " + str(a))
-        ax4.plot(pointy[0],pointz[0],'o',color=colours(a),label="Start for " + str(a))
-    labels = ["Eigenvalue real","Eigenvalue imaginary","$b_{\infty,3} x-shift$",]
-    ax.set_zlabel(labels[2])
-    ax.set_ylabel(labels[1])
-    ax.set_xlabel(labels[0])
-    ax2.set_ylabel(labels[1])
-    ax2.set_xlabel(labels[0])
-    ax3.set_ylabel(labels[2])
-    ax3.set_xlabel(labels[0])
-    ax4.set_ylabel(labels[2])
-    ax4.set_xlabel(labels[1])
-    ax.grid(True)
-    ax2.grid(True)
-    ax3.grid(True)
-    ax4.grid(True)
-    ax.legend()
-    plt.show()
+    bfr2 = test.eigenvalue_dance(steady_states,sort_v_index=sort_var_index)
+    for ch,bifurcate_results2 in bfr2.items():
+        print("Channel",ch)
+        gs = gridspec.GridSpec(2,2)
+        fig = plt.figure(figsize=(18,18))
+        ax = fig.add_subplot(gs[0,0],projection="3d")
+        ax2 = fig.add_subplot(gs[1,0])
+        ax3 = fig.add_subplot(gs[0,1])
+        ax4 = fig.add_subplot(gs[1,1])
+        for a in [0,1,2,3,4,5,6]:
+            pointx = []
+            pointy = []
+            pointz = []
+            for b in bifurcate_results2:
+                pointx.append(b[0][a].real)
+                pointy.append(b[0][a].imag)
+                pointz.append(b[1])
+            pointx = np.array(pointx)
+            pointy = np.array(pointy)
+            pointz = np.array(pointz)
+            ax.plot(pointx,pointy,pointz,color=colours(a),label="Eigenvalue " + str(a))
+            ax.plot(pointx[0],pointy[0],pointz[0],'o',color=colours(a),label="Start for " + str(a))
+            ax2.plot(pointx,pointy,color=colours(a),label="Eigenvalue " + str(a))
+            ax2.plot(pointx[0],pointy[0],'o',color=colours(a),label="Start for " + str(a))
+            ax3.plot(pointx,pointz,color=colours(a),label="Eigenvalue " + str(a))
+            ax3.plot(pointx[0],pointz[0],'o',color=colours(a),label="Start for " + str(a))
+            ax4.plot(pointy,pointz,color=colours(a),label="Eigenvalue " + str(a))
+            ax4.plot(pointy[0],pointz[0],'o',color=colours(a),label="Start for " + str(a))
+        labels = ["Eigenvalue real","Eigenvalue imaginary","$b_{\infty,4} x-shift$"]
+        ax.set_zlabel(labels[2])
+        ax.set_ylabel(labels[1])
+        ax.set_xlabel(labels[0])
+        ax2.set_ylabel(labels[1])
+        ax2.set_xlabel(labels[0])
+        ax3.set_ylabel(labels[2])
+        ax3.set_xlabel(labels[0])
+        ax4.set_ylabel(labels[2])
+        ax4.set_xlabel(labels[1])
+        ax.grid(True)
+        ax2.grid(True)
+        ax3.grid(True)
+        ax4.grid(True)
+        ax.legend()
+        plt.show()
 
-def modifier(p,m):
-    out = p
-    out.binf_j[1] = Sigmoidal(a=1,b=1,c=-10,d=-5,xshift=m)
-    return out
+def v_inf(t,x,p):
+    a2,a3,a4,b2,b3,b4 = x
+    c1 = p.g(2) * (a2 ** 2) * b2 + p.g(3) * (a3 ** 3) * b3 + p.g(4) * (a4 ** 4) * b4
+    c2 = p.g(2) * (a2 ** 2) * b2 * p.v(2) + p.g(3) * (a3 ** 3) * b3 * p.v(3) + p.g(4) * (a4 ** 4) * b4 * p.v(4)
+    return (p.I(t) - c2) / c1
+
+def ts_connor_stevens(t,x,p,timescale):
+    frozen = p.frozen_vars
+    if timescale == 1: #fastest, v, a3, a4
+        v,a3,a4 = x
+        da3dt = p.ainf(3,v) - a3
+        da4dt = p.ainf(4,v) - a4
+        dvdt = p.I(t) - (a3 ** 3) * p.binf(3,v) * (v - p.v(3)) \
+             - (a4 ** 4) * p.binf(4,v) * (v - p.v(4)) \
+             - (p.ainf(2,v) ** 2) * p.binf(4,v) * (v - p.v(2))
+        return [da3dt,da4dt,dvdt]
+    elif timescale == 2: #middle, b2, b3
+        b2,b3 = x
+        v = v_inf(t,[frozen[0],frozen[1],frozen[2],b2,b3,frozen[5]],p)
+        db2dt = p.binf(2,v) - b2
+        db3dt = p.binf(3,v) - b3
+        return [db2dt,db3dt]
+    else: #slowest, b4, a2
+        a2,b4 = x
+        v = v_inf(t,[a2,frozen[1],frozen[2],frozen[3],frozen[4],b4],p)
+        da2dt = p.ainf(2,v) - a2
+        db4dt = p.binf(4,v) - b4
+        return [da2dt,db4dt]
+
+def timescale_phase_plots():
+    params = Parameters()
+    initial = {1:[40,0.1,0.1],2:[0.1,0.1],3:[0.1,0.1]}
+    for ts in [1,2,3]:
+        t_span = [0, 1200]
+        t_eval = np.linspace(t_span[0], t_span[1], t_span[1] - t_span[0])
+        this_ts_cs = lambda t,x,p: ts_connor_stevens(t,x,p,ts)
+        sol = solve_ivp(this_ts_cs, t_span, initial[ts], args=(params,), dense_output=True, t_eval=t_eval, method='RK45')
+        if ts == 1:
+            fig = plt.figure(figsize=(6,6))
+            ax = fig.add_subplot(projection='3d')
+            ax.plot(sol.y[0],sol.y[1],sol.y[2],color="blue",label="Path")
+            ax.plot(sol.y[0][0],sol.y[1][0],sol.y[2][0],'go',label="Start")
+            ax.plot(sol.y[0][-1],sol.y[1][-1],sol.y[2][-1],'ro',label="End")
+            ax.set_title('Phase space: ' + pretty_names(0) + ' and ' + pretty_names(2) + " and " + pretty_names(3))
+            ax.set_xlabel(pretty_names(0))
+            ax.set_ylabel(pretty_names(2))
+            ax.set_zlabel(pretty_names(3))
+            ax.grid(True)
+            ax.legend()
+        elif ts == 2:
+            fig = plt.figure(figsize=(12,6))
+            ax = fig.add_subplot()
+            ax.plot(sol.y[0],sol.y[1])
+            ax.plot(sol.y[0][0],sol.y[1][0],'go',label="Start")
+            ax.plot(sol.y[0][-1],sol.y[1][-1],'ro',label="End")
+            ax.set_title('Phase space: ' + pretty_names(4) + ' and ' + pretty_names(5))
+            ax.set_xlabel(pretty_names(4))
+            ax.set_ylabel(pretty_names(5))
+            ax.grid(True)
+            ax.legend()
+        elif ts == 3:
+            fig = plt.figure(figsize=(12,6))
+            ax = fig.add_subplot()
+            ax.plot(sol.y[0],sol.y[1])
+            ax.plot(sol.y[0][0],sol.y[1][0],'go',label="Start")
+            ax.plot(sol.y[0][-1],sol.y[1][-1],'ro',label="End")
+            ax.set_title('Phase space: ' + pretty_names(1) + ' and ' + pretty_names(6))
+            ax.set_xlabel(pretty_names(1))
+            ax.set_ylabel(pretty_names(6))
+            ax.grid(True)
+            ax.legend()
+        plt.show()
+
+def bifurcate_2d_timescales(ts,range_var1,range_var2,range_bifurcate,bifurcate_index,params): #index in [a2,a3,a4,b2,b3,b4]
+    resolution = range_var1.shape[0]
+    if resolution != range_var2.shape[0] or resolution != range_bifurcate.shape[0]: 
+        raise ValueError("The input arrays do not have the same shape/resolution: " \
+                         + str(resolution) + ' (var 1), ' + str(range_var2.shape[0]) + ' (var 2), '\
+                         + str(range_bifurcate.shape[0]) + '(bifurcate)')
+    this_cs = lambda t,x,p: ts_connor_stevens(t,x,p,ts)
+    eigvals_x = []
+    var1grid, var2grid = np.meshgrid(range_var1,range_var2)
+    vargrid = np.zeros_like(var1grid).tolist()
+    for i in range(len(var1grid)):
+        for j in range(len(var2grid)):
+            vargrid[i][j] = [var1grid[i][j],var2grid[i][j]]
+    vargrid = np.array(vargrid).T
+    print(vargrid.shape)
+    for x in range_bifurcate:
+        params_mod = copy.deepcopy(params)
+        params_mod.frozen_vars[bifurcate_index] = x
+        jacobian_v = jacobian(lambda v: this_cs(0.1,v,params_mod),vargrid).df
+        eigvals_v = []
+        for vi in range(len(jacobian_v[0][0])):
+            eigvals_vj = []
+            for vj in range(len(jacobian_v[0][0])):
+                matrix = jacobian_v[:,:,vi,vj]
+                m_eigvals = eig(matrix,right=True)[0][0]
+                eigvals_vj.append(m_eigvals)
+            eigvals_v.append(eigvals_vj)
+        eigvals_x.append(np.array(eigvals_v))
+    bgrid, v1grid, v2grid = np.meshgrid(range_bifurcate,range_var1,range_var2)
+    d1grid = np.zeros_like(bgrid)
+    d2grid = np.zeros_like(bgrid)
+    dbgrid = np.zeros_like(bgrid)
+    for i in range(len(bgrid)):
+        for j in range(len(bgrid[i])):
+            for k in range(len(bgrid[i][j])):
+                params_mod = copy.deepcopy(params)
+                params_mod.frozen_vars[bifurcate_index] = bgrid[i][j][k]
+                dgrid = this_cs(0.1,[v1grid[i][j][k],v2grid[i][j][k]],params_mod)
+                d1grid[i][j][k] = dgrid[0]
+                d2grid[i][j][k] = dgrid[1]
+                full_vector = copy.deepcopy(params_mod.frozen_vars)
+                full_vector.insert(0,0)
+                if ts == 2:
+                    full_vector[3] = v1grid[i][j][k]
+                    full_vector[4] = v2grid[i][j][k]
+                elif ts == 3:
+                    full_vector[0] = v1grid[i][j][k]
+                    full_vector[5] = v2grid[i][j][k]
+                full_vector[bifurcate_index] = bgrid[i][j][k]
+                dbgrid = connor_stevens(0,full_vector,params)[bifurcate_index + 1]
+                full_vector = []
+    final_x = np.array(eigvals_x).T
+    print(final_x.shape)
+    #display tolerance
+    tol = 5e-5
+    dzgrid = d1grid + d2grid #both zero is the only thing that matters
+    red_dgrid = copy.deepcopy(d1grid)
+    black_dgrid = copy.deepcopy(d1grid)
+    signalgrid = np.zeros_like(d1grid)
+    imag_signalgrid = np.zeros_like(d1grid)
+    for i in range(len(dzgrid)):
+        for j in range(len(dzgrid[i])):
+            for k in range(len(dzgrid[i][j])):
+                if final_x[i][j][k].imag != 0:
+                    imag_signalgrid[i][j][k] = 1
+                if final_x[i][j][k].real > 0:
+                    red_dgrid[i][j][k] = np.nan #dummy
+                    signalgrid[i][j][k] = 1
+                    #black_dzgrid maintained
+                elif final_x[i][j][k].real < 0:
+                    black_dgrid[i][j][k] = np.nan #dummy
+                    signalgrid[i][j][k] = -1
+                    #red_dzgrid maintained
+                else: #it was zero
+                    signalgrid[i][j][k] = 0
+    
+    lp_points = []
+    ah_points = []
+    lp_in_grid = []
+    ah_in_grid = []
+    #now, adjacency check for signalgrid
+    for i in range(len(dzgrid)):
+        for j in range(len(dzgrid[i])):
+            for k in range(len(dzgrid[i][j])):
+                if abs(dzgrid[i][j][k]) > tol: continue
+                checkpoints = [
+                    signalgrid[i - 1 if i > 0 else i][j][k],
+                    signalgrid[i + 1 if i < resolution - 1 else i][j][k],
+                    signalgrid[i][j + 1 if j < resolution - 1 else j][k],
+                    signalgrid[i][j - 1 if j > 0 else j][k],
+                    signalgrid[i][j][k - 1 if k > 0 else k],
+                    signalgrid[i][j][k + 1 if k < resolution - 1 else k]
+                ]
+                for p in checkpoints:
+                    if signalgrid[i][j][k] != p:
+                        if imag_signalgrid[i][j][k] == 1:
+                            ah_points.append([bgrid[i][j][k],v1grid[i][j][k],v2grid[i][j][k]])
+                            ah_in_grid.append([i,j,k])
+                        else:
+                            lp_points.append([bgrid[i][j][k],v1grid[i][j][k],v2grid[i][j][k]])
+                            lp_in_grid.append([i,j,k])
+                        break
+    print(lp_points,ah_points)
+    #graphing
+    plt.figure(figsize=(12,6))
+    ax = plt.axes(projection='3d')
+    cr = ax.contour(bgrid,v1grid,v2grid,red_dgrid,colors='red',levels=[0])
+    cb = ax.contour(bgrid,v1grid,v2grid,black_dgrid,colors='black',levels=[0])
+    cx = ax.contour(bgrid,v1grid,v2grid,dbgrid,colors='purple',levels=[0])
+    for p in lp_points:
+        ax.plot(p[0],p[1],'go',label="LP Bifurcation at " + str(p[0]) + ", " + str(p[1]) + ', ' + str(p[2]))
+    
+    for p in ah_points:
+        ax.plot(p[0],p[1],'bo',label="AH Bifurcation at " + str(p[0]) + ", " + str(p[1]) + ', ' + str(p[2]))
+    
+    plt.title('Bifurcation Diagram')
+    plt.xlabel(pretty_names(bifurcate_index))
+    if ts == 2:
+        plt.ylabel('b2')
+        plt.zlabel('b3')
+    if ts == 3:
+        plt.ylabel('a2')
+        plt.zlabel('b4')
+    plt.grid(True)
+    plt.legend()
+    plt.show()
 
 ###########################
 # Actually run the system #
 ###########################
 
+#THIS IS REALLY IMPORTANT!!!
+#The parameter to bifurcate on is changed here
+def modifier(p,m):
+    out = p
+    out.v_j[2] = m
+    return out
+
 def main():
     # basic_system_data()
     soln = basic_system_data()
     phase_planes(soln)
-    test = Bifurcator(modifier,Parameters(),np.linspace(-35,35,50))
-    steady_state_results = perform_bifurcation(test)
-    eigenvalue_plot(test,steady_state_results,continuous_fake=True)
 
+    
+    #test = Bifurcator(modifier,Parameters(),np.linspace(-35,35,50))
+    #steady_state_results = perform_bifurcation(test)
+    #eigenvalue_plot(test,steady_state_results,continuous_fake=True)
+
+    #Threaded system speed test
+    #This does NOT work for eigenvalue dance as it's not really needed
+    
+    thread_start = time.time()
+    test = Bifurcator(modifier,Parameters(),np.linspace(-80,80,50),True) #this True/False controls if the threading is on
+    steady_state_results = perform_bifurcation(test,tolerance_max=15)
+    plot_bifurcation(steady_state_results)
+    threaded_time = time.time() - thread_start
+    print("Threaded took:",threaded_time)
+    
+    un_start = time.time()
+    test = Bifurcator(modifier,Parameters(),np.linspace(-80,80,50),False)
+    #steady_state_results = perform_bifurcation(test,tolerance_max=50)
+    plot_bifurcation(steady_state_results)
+    unthreaded_time = time.time() - un_start
+    print("Unthreaded took:",unthreaded_time)
+    #eigenvalue_plot(test,steady_state_results,0,continuous_fake=True)
+
+    #This currently functions, but fails to graph it.
+    bifurcate_2d_timescales(2,np.linspace(0,1,100),np.linspace(0,1,100),np.linspace(0,1,100),1,Parameters())
+    timescale_phase_plots()
 
 if __name__ == "__main__":
     main()
-
-#it still swaps the values occasionally
-#damnit
