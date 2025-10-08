@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 import numpy as np
 from scipy.integrate import solve_ivp
 from scipy.optimize import fsolve
@@ -294,7 +296,8 @@ def basic_system_data():
     params = Parameters()
     V0 = [-40,0.9,0.9,0.9,0.9,0.9,0.9]
     t_span = [0, 1200]
-    t_eval = np.linspace(t_span[0], t_span[1], t_span[1] - t_span[0])
+    stepmul = 100
+    t_eval = np.linspace(t_span[0], t_span[1], (t_span[1] - t_span[0])*stepmul)
     sol = solve_ivp(connor_stevens, t_span, V0, args=(params,), dense_output=True, t_eval=t_eval, method='RK45')
     
     # 3. Plot the Results
