@@ -14,3 +14,5 @@
 !bibliography.bib
 !bib.bib
 main-blx.bib
+
+datasets/*
