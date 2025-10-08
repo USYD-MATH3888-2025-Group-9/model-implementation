@@ -92,7 +92,8 @@ class PowerSigmoidal:
         self.yshift = yshift
 
 class StepFunction:
-    steps = [] #type: list<pairs:start,value>, must be ordered.
+    #type: list<pairs:start,value>, must be ordered.
+    steps = [] 
     default = 0
     def run(self,x):
         out = self.default
@@ -559,7 +560,7 @@ class Bifurcator:
             eig_data = eig(jacob,right=True)
             evectors = eig_data[1]
             evals = eig_data[0]
-            if verbose: print("eigenvalues",evals)
+            if verbose: print(f"eigenvalues \033[31;1m {evals} \033[m ")
             return [np.array(evals),i]
         evals_list = self.generate_modified(lambda new,i: _eigenvalue_dance_task(new,i,var_range[i],verbose),verbose)
         #now fix the ordering
@@ -586,10 +587,10 @@ class Bifurcator:
         out_list = []
         counter = 0
         for i in self.p_range:
-            if verbose: print("count",counter)
+            if verbose: print(f"count\033[95m {counter} \033[m")
             new_entry = copy.deepcopy(self.base)
             new_entry = self.mod(new_entry,i)
-            if verbose: print("running",self.p_range[counter])
+            if verbose: print(f"running {self.p_range[counter]} ")
             out_list.append(task(new_entry,i))
             counter += 1
         return out_list
@@ -705,7 +706,7 @@ def main():
     soln = basic_system_data()
     phase_planes(soln)
     test = Bifurcator(modifier,Parameters(),np.linspace(-35,35,50))
-    steady_state_results = perform_bifurcation(test,max_tolerance=50)
+    steady_state_results = perform_bifurcation(test)
     eigenvalue_plot(test,steady_state_results,continuous_fake=True)
 
 
