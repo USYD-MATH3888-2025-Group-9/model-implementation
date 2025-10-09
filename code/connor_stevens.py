@@ -13,292 +13,17 @@ import itertools
 import warnings
 import copy #because I need it to clone the parameter instances
 
-# --- Setup
-def linear(x,m,b):
-    return m * x + b
-
-class CappedLinear:
-    grad = 0
-    yint = 0
-    lower = 1
-    upper = 0
-    minimum = 0
-    maximum = 1
-    reverse = False
-    def run(self,x):
-        if isinstance(x,np.ndarray):
-            out = linear(x,self.grad,self.yint)
-            final_shape = out.shape
-            out = np.reshape(out,(-1))
-            new_x = np.reshape(x,(-1))
-            for i in range(len(out)):
-                if new_x[i] < self.upper if self.reverse else new_x[i] > self.upper:
-                    out[i] = self.maximum if self.reverse else self.minimum
-                elif new_x[i] > self.lower if self.reverse else new_x[i] < self.lower:
-                    out[i] = self.minimum if self.reverse else self.maximum
-            return np.reshape(out,final_shape)
-        else:
-            out = linear(x,self.grad,self.yint)
-            if x < self.upper if self.reverse else x > self.upper:
-                return self.maximum if self.reverse else self.minimum
-            elif x > self.lower if self.reverse else x < self.lower:
-                return self.minimum if self.reverse else self.maximum
-            else:
-                return out
-    def __init__(self,grad,yint,lower,upper,minimum,maximum,reverse):
-        self.grad = grad
-        self.yint = yint
-        self.lower = lower
-        self.upper = upper
-        self.minimum = minimum
-        self.maximum = maximum
-        self.reverse = reverse
-
-def sigmoid(x,a,b,c,d):
-    return a / (b + np.exp((c - x) / d))
-
-class Sigmoidal:
-    a = 0
-    b = 0
-    c = 0
-    d = 0
-    yshift = 0
-    xshift = 0
-    def run(self,x):
-        return sigmoid(x + self.xshift,self.a,self.b,self.c,self.d) + self.yshift
-    def __init__(self,a,b,c,d,yshift=0,xshift=0):
-        self.a = a
-        self.b = b
-        self.c = c
-        self.d = d
-        self.yshift = yshift
-        self.xshift = xshift
-
-class PowerSigmoidal:
-    a = 0
-    b = 0
-    c = 0
-    d = 0
-    power = 1 / 2
-    xshift = 0
-    yshift = 0
-    def run(self,x):
-        return np.power(sigmoid(x + self.xshift,self.a,self.b,self.c,self.d),self.power) + self.yshift
-    def __init__(self,a,b,c,d,power,xshift=0,yshift=0):
-        self.a = a
-        self.b = b
-        self.c = c
-        self.d = d
-        self.power = power
-        self.xshift = xshift
-        self.yshift = yshift
-
-class StepFunction:
-    #type: list<pairs:start,value>, must be ordered.
-    steps = [] 
-    default = 0
-    def run(self,x):
-        out = self.default
-        for start,value in self.steps:
-            if x >= start:
-                out = value
-        return out
-    def __init__(self,steps,default):
-        self.steps = steps
-        self.default = default
-
-class Constant:
-    value = 0
-    def run(self,x):
-        return self.value
-    def __init__(self,value):
-        self.value = value
-
-# --- Physiological Parameters ---
-class Parameters:
-    cm = 14 # trial, 14pF
-    disabled = [0,1,1,1,1] #blank,blank,2,3,4
-
-    v_j = [-40,-60,-45,-63]
-    g_j = [0.049,10,21,10]
-    atau_j = [Constant(1),
-            CappedLinear(
-                grad=(300-60)/(-50),
-                yint=(((300-60) / (-50)) * 40 + 300),
-                lower=-40,
-                upper=10,
-                maximum=300,
-                minimum=60,
-                reverse=False),
-            Sigmoidal(
-                a=0.6335,
-                b=0.05426,
-                c=-1.932,
-                d=-4.650,
-                yshift=1
-            ),
-           Constant(12)]
-    btau_j = [
-        Constant(1),
-        Constant(50),
-        Sigmoidal(
-            a=0.3346,
-            b=0.003225,
-            c=-1.9342,
-            d=-4.045,
-            yshift=5
-        ),
-        Constant(235)
-    ]
-    ainf_j = [
-        Constant(1),
-        PowerSigmoidal(
-            a=1,
-            b=1,
-            c=0,
-            d=-10,
-            power=1/2
-        ),
-        PowerSigmoidal(
-            a=1,
-            b=1,
-            c=-10,
-            d=5,
-            power=1/3
-        ),
-        PowerSigmoidal(
-            a=1,
-            b=1,
-            c=-10,
-            d=20,
-            power=1/4
-        )
-    ]
-    binf_j = [
-        Constant(1),
-        Sigmoidal(
-            a=1,
-            b=1,
-            c=0,
-            d=6
-        ),
-        Sigmoidal(
-            a=1,
-            b=1,
-            c=-10,
-            d=-5,
-            xshift=20
-        ),
-        Sigmoidal(
-            a=1,
-            b=1,
-            c=0,
-            d=-20,
-            xshift=60
-        )
-    ]
-    Iapp = Constant(0)
-    def v(self,j): #mV
-        '''
-        Nernst potentials
-        '''
-        return self.v_j[j - 1]
-    def g(self,j): #mS/cm^2
-        '''
-        Conductance constants
-        '''
-        return self.g_j[j - 1]
-    def atau(self,j,v): #ms
-        '''
-        Rate functions for A-side
-        '''
-        return self.atau_j[j - 1].run(v)
-    def btau(self,j,v): #ms
-        '''
-        Rate functions for B-side
-        '''
-        return self.btau_j[j - 1].run(v)
-    def ainf(self,j,v):
-        '''
-        Steady-state functions for A-side
-        '''
-        #print("ainf",j)
-        return self.ainf_j[j - 1].run(v)
-    def binf(self,j,v):
-        '''
-        Steady-state functions for B-side
-        '''
-        return self.binf_j[j - 1].run(v)
-    def I(self,t): #applied current
-        return self.Iapp.run(t)
-
-# --- Solving the ODE and Plotting the Potential ---
-
-def connor_stevens(t, x, p):
-    v, a2, a3, a4, b2, b3, b4 = x
-    def a(j):
-        match j:
-            case 1:
-                return 1
-            case 2:
-                return a2
-            case 3:
-                return a3
-            case 4:
-                return a4
-
-    def b(j):
-        match j:
-            case 1:
-                return 1
-            case 2:
-                return b2
-            case 3:
-                return b3
-            case 4:
-                return b4
-    summed_terms = 0
-    for j in [1,2,3,4]:
-        summed_terms += (p.g(j)) * (a(j) ** j) * b(j) * (v - p.v(j)) * p.disabled[j]
-    dvdt = (1 / p.cm) * (p.I(t) - summed_terms)
-    dadt = [0,0] # so that the indexes line up
-    dbdt = [0,0]
-    for j in [2,3,4]:
-        dajdt = (1 / p.atau(j,v)) * (p.ainf(j,v) - a(j)) * p.disabled[j]
-        dbjdt = (1 / p.btau(j,v)) * (p.binf(j,v) - b(j)) * p.disabled[j]
-        dadt.append(dajdt)
-        dbdt.append(dbjdt)
-    out = [dvdt,dadt[2],dadt[3],dadt[4],dbdt[2],dbdt[3],dbdt[4]]
-    #print(dadt,a(2),a(3),a(4),sep='\n')
-    return out
-
-def pretty_names(index):
-    match index:
-        case 0:
-            return 'V(t)'
-        case 1:
-            return 'a2: K On'
-        case 2:
-            return 'a3: Na On'
-        case 3:
-            return 'a4: Combined On'
-        case 4:
-            return 'b2: K Off'
-        case 5:
-            return 'b3: Na Off'
-        case 6:
-            return 'b4: Combined Off'
-
+import model_and_parameters as cs
 
 
 # 2. Solve Numerically
 def basic_system_data():
-    params = Parameters()
+    params = cs.Parameters()
     V0 = [-40,0.9,0.9,0.9,0.9,0.9,0.9]
     t_span = [0, 1200]
     stepmul = 100
     t_eval = np.linspace(t_span[0], t_span[1], (t_span[1] - t_span[0])*stepmul)
-    sol = solve_ivp(connor_stevens, t_span, V0, args=(params,), dense_output=True, t_eval=t_eval, method='RK45')
+    sol = solve_ivp(cs.connor_stevens, t_span, V0, args=(params,), dense_output=True, t_eval=t_eval, method='RK45')
     
     # 3. Plot the Results
     display_time = 150
@@ -312,7 +37,7 @@ def basic_system_data():
     ax5 = fig.add_subplot(gs[0,2])
     #axs[0,0].plot(sol.t, sol.y[0])
 
-    ax1.plot(sol.t[:display_time], sol.y[0][:display_time], label=pretty_names(0))
+    ax1.plot(sol.t[:display_time], sol.y[0][:display_time], label=cs.pretty_names(0))
     ax1.set_title('Membrane Potential Time Course')
     ax1.set_xlabel('Time (ms)')
     ax1.set_ylabel('Membrane voltage (mV)')
@@ -320,7 +45,7 @@ def basic_system_data():
     ax1.legend()
 
     for i in [1,2,3,4,5,6]:
-        ax2.plot(sol.t[:display_time], sol.y[i][:display_time], label=pretty_names(i))
+        ax2.plot(sol.t[:display_time], sol.y[i][:display_time], label=cs.pretty_names(i))
     ax2.set_title('Channel Behaviour Time Course')
     ax2.set_xlabel('Time (ms)')
     ax2.set_ylabel('Activated Channels Proportion')
@@ -329,8 +54,8 @@ def basic_system_data():
     
     for i in [2,3,4]:
         vrange = np.linspace(-100,25,100)
-        ax3.plot(vrange, params.ainf(i,vrange), label=pretty_names(i - 1))
-        ax3.plot(vrange,params.binf(i,vrange), label=pretty_names(i + 2))
+        ax3.plot(vrange, params.ainf(i,vrange), label=cs.pretty_names(i - 1))
+        ax3.plot(vrange,params.binf(i,vrange), label=cs.pretty_names(i + 2))
     ax3.set_title('Channel Behaviour vs Voltage')
     ax3.set_xlabel('Voltage (mV)')
     ax3.set_ylabel('Activated Channels Proportion')
@@ -341,8 +66,8 @@ def basic_system_data():
         vrange = np.linspace(-100,25,100)
         ataus = np.array([params.atau(i,v) for v in vrange])
         btaus = np.array([params.btau(i,v) for v in vrange])
-        ax4.plot(vrange,ataus, label=pretty_names(i - 1))
-        ax4.plot(vrange,btaus, label=pretty_names(i + 2))
+        ax4.plot(vrange,ataus, label=cs.pretty_names(i - 1))
+        ax4.plot(vrange,btaus, label=cs.pretty_names(i + 2))
     ax4.set_title('Channel Behaviour vs Voltage')
     ax4.set_xlabel('Voltage (mV)')
     ax4.set_ylabel('Rate constant (ms)')
@@ -409,10 +134,10 @@ def generate_points(param):
             random_start.append((random.random() - 0.5) * 200)
         else:
             random_start.append(random.random())
-    steady = fsolve(lambda x: connor_stevens(0,x,param),np.array(random_start))
+    steady = fsolve(lambda x: cs.connor_stevens(0,x,param),np.array(random_start))
     return steady
 
-def find_steady_states(verbose=False,param=Parameters(),tolerance_max=400):
+def find_steady_states(verbose=False,param=cs.Parameters(),tolerance_max=400):
     all_bins = []
     start_time = time.time()
     if verbose: print("Stage 1")
@@ -471,9 +196,9 @@ def phase_planes(sol):
                 print("ignoring steady state", steady_state[s],f"because confidence {confidence[s]:.2f} is less than {plot_steady_min_confidence:.2f}")
                 break
             ax1.plot(steady_state[s][0][i[0]],steady_state[s][0][i[1]],'go', ms=10, label=f'Steady State, confidence {confidence[s]:.2f}')
-        ax1.set_title('Phase space: ' + pretty_names(i[0]) + ' and ' + pretty_names(i[1]))
-        ax1.set_xlabel(pretty_names(i[0]))
-        ax1.set_ylabel(pretty_names(i[1]))
+        ax1.set_title('Phase space: ' + cs.pretty_names(i[0]) + ' and ' + cs.pretty_names(i[1]))
+        ax1.set_xlabel(cs.pretty_names(i[0]))
+        ax1.set_ylabel(cs.pretty_names(i[1]))
         ax1.grid(True)
         ax1.legend()
         count += 1
@@ -494,10 +219,10 @@ def phase_planes(sol):
                 print("ignoring steady state", steady_state[s],f"because confidence {confidence[s]:.2f} is less than {plot_steady_min_confidence:.2f}")
                 break
             ax2.plot(steady_state[s][0][i[0]],steady_state[s][0][i[1]],steady_state[s][0][i[2]],'go', ms=10, label=f'Steady State, confidence {confidence[s]:.2f}')
-        ax2.set_title('Phase space: ' + pretty_names(i[0]) + ' and ' + pretty_names(i[1]) + ' and ' + pretty_names(i[2]))
-        ax2.set_xlabel(pretty_names(i[0]))
-        ax2.set_ylabel(pretty_names(i[1]))
-        ax2.set_zlabel(pretty_names(i[2]))
+        ax2.set_title('Phase space: ' + cs.pretty_names(i[0]) + ' and ' + cs.pretty_names(i[1]) + ' and ' + cs.pretty_names(i[2]))
+        ax2.set_xlabel(cs.pretty_names(i[0]))
+        ax2.set_ylabel(cs.pretty_names(i[1]))
+        ax2.set_zlabel(cs.pretty_names(i[2]))
         ax2.grid(True)
         ax2.legend()
         count += 1
@@ -535,8 +260,8 @@ def unscrambled(current,past,past2):
     
 class Bifurcator:
     mod = None # modifier, converts parameter type to a new one with required value
-    base = Parameters()
-    model = connor_stevens
+    base = cs.Parameters()
+    model = cs.connor_stevens
     p_range = np.linspace(0,100,100)
     def steady_states(self,verbose=False,max_tolerance=50):
         '''
@@ -559,7 +284,7 @@ class Bifurcator:
         of the variables in var_range.
         '''
         def _eigenvalue_dance_task(new,i,var_at_new,verbose):
-            jacob = jacobian(lambda x: connor_stevens(0,x,new),var_at_new).df
+            jacob = jacobian(lambda x: cs.connor_stevens(0,x,new),var_at_new).df
             eig_data = eig(jacob,right=True)
             evectors = eig_data[1]
             evals = eig_data[0]
@@ -627,7 +352,7 @@ def perform_bifurcation(test):
     for b in bifurcate_results:
         for a in range(len(b[0])):
             ax.plot(b[2],b[0][a][0][0],"go",color=(b[1][a],0,0))
-    ax.set_ylabel(pretty_names(0))
+    ax.set_ylabel(cs.pretty_names(0))
     ax.set_xlabel("$V_4$")
     ax.grid(True)
     plt.show()
@@ -697,7 +422,7 @@ def eigenvalue_plot(test,ssr,continuous_fake=False):
 
 def modifier(p,m):
     out = p
-    out.binf_j[1] = Sigmoidal(a=1,b=1,c=-10,d=-5,xshift=m)
+    out.binf_j[1] = cs.Sigmoidal(a=1,b=1,c=-10,d=-5,xshift=m)
     return out
 
 ###########################
@@ -708,7 +433,7 @@ def main():
     # basic_system_data()
     soln = basic_system_data()
     phase_planes(soln)
-    test = Bifurcator(modifier,Parameters(),np.linspace(-35,35,50))
+    test = Bifurcator(modifier,cs.Parameters(),np.linspace(-35,35,50))
     steady_state_results = perform_bifurcation(test)
     eigenvalue_plot(test,steady_state_results,continuous_fake=True)
 
