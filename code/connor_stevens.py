@@ -290,8 +290,7 @@ def pretty_names(index):
         case 6:
             return 'b4: Combined Off'
 
-
-import model_and_parameters as cs
+from model_and_parameters import *
 
 # 2. Solve Numerically
 def basic_system_data():
@@ -978,8 +977,6 @@ def main():
     # basic_system_data()
     soln = basic_system_data()
     phase_planes(soln)
-
-    
     #test = Bifurcator(modifier,Parameters(),np.linspace(-35,35,50))
     #steady_state_results = perform_bifurcation(test)
     #eigenvalue_plot(test,steady_state_results,continuous_fake=True)
