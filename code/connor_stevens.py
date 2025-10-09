@@ -291,6 +291,7 @@ def pretty_names(index):
             return 'b4: Combined Off'
 
 
+import model_and_parameters as cs
 
 # 2. Solve Numerically
 def basic_system_data():
