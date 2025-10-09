@@ -105,7 +105,7 @@ class Constant:
 class Parameters:
     cm = 14 # trial, 14pF
     disabled = [0,1,1,1,1] #blank,blank,2,3,4
-
+    frozen_vars = [0.1,0.1,0.1,0.1,0.1,0.1] #a2,a3,a4,b2,b3,b4
     v_j = [-40,-60,-45,-63]
     g_j = [0.049,10,21,10]
     atau_j = [Constant(1),
