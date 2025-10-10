@@ -16,3 +16,6 @@
 main-blx.bib
 
 datasets/*
+outputs/
+machine_config.py
+__pycache__/*

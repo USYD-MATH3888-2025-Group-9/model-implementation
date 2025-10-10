@@ -1,5 +1,7 @@
 import numpy as np
 
+# Basic model
+
 # --- Setup
 def linear(x,m,b):
     return m * x + b
@@ -219,8 +221,11 @@ class Parameters:
     def I(self,t): #applied current
         return self.Iapp.run(t)
 
-# --- Solving the ODE and Plotting the Potential ---
 
+# Solution parameters
+stepmul = 100
+
+# --- Solving the ODE and Plotting the Potential ---
 def connor_stevens(t, x, p):
     v, a2, a3, a4, b2, b3, b4 = x
     def a(j):
@@ -259,6 +264,25 @@ def connor_stevens(t, x, p):
     #print(dadt,a(2),a(3),a(4),sep='\n')
     return out
 
+
+# --- Prettying things up
+def colours(index):
+    match index:
+        case 0:
+            return "red"
+        case 1:
+            return "orange"
+        case 2:
+            return "yellow"
+        case 3:
+            return "green"
+        case 4:
+            return "blue"
+        case 5:
+            return "purple"
+        case 6:
+            return "black"
+
 def pretty_names(index):
     match index:
         case 0:
@@ -276,3 +300,34 @@ def pretty_names(index):
         case 6:
             return 'b4: Combined Off'
 
+# Multiple timescale stuff
+
+def v_inf(t,x,p):
+    a2,a3,a4,b2,b3,b4 = x
+    c1 = p.g(2) * (a2 ** 2) * b2 + p.g(3) * (a3 ** 3) * b3 + p.g(4) * (a4 ** 4) * b4
+    c2 = p.g(2) * (a2 ** 2) * b2 * p.v(2) + p.g(3) * (a3 ** 3) * b3 * p.v(3) + p.g(4) * (a4 ** 4) * b4 * p.v(4)
+    return (p.I(t) - c2) / c1
+
+def ts_connor_stevens(t,x,p,timescale):
+    frozen = p.frozen_vars
+    if timescale == 1: #fastest, v, a3, a4
+        v,a3,a4 = x
+        da3dt = p.ainf(3,v) - a3
+        da4dt = p.ainf(4,v) - a4
+        dvdt = p.I(t) - (a3 ** 3) * p.binf(3,v) * (v - p.v(3)) \
+             - (a4 ** 4) * p.binf(4,v) * (v - p.v(4)) \
+             - (p.ainf(2,v) ** 2) * p.binf(4,v) * (v - p.v(2))
+        return [da3dt,da4dt,dvdt]
+    elif timescale == 2: #middle, b2, b3
+        b2,b3 = x
+        v = v_inf(t,[frozen[0],frozen[1],frozen[2],b2,b3,frozen[5]],p)
+        db2dt = p.binf(2,v) - b2
+        db3dt = p.binf(3,v) - b3
+        return [db2dt,db3dt]
+    else: #slowest, b4, a2
+        a2,b4 = x
+        v = v_inf(t,[a2,frozen[1],frozen[2],frozen[3],frozen[4],b4],p)
+        da2dt = p.ainf(2,v) - a2
+        db4dt = p.binf(4,v) - b4
+        return [da2dt,db4dt]
+    
