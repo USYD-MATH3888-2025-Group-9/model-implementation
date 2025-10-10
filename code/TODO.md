@@ -1,6 +1,6 @@
 # 2025-10-08
 - Albert: 
-    -   Moving the Connor-Stevens model to separate file, this means that the model can then be called from multiple programs without issues
+    -   Moving the Connor-Stevens model to separate file, this means that the model can then be called from multiple programs without issues - DONE
     -   Performing timescale analysis on the 3 timescales in python
 - Kyle:
     -   Continuing multi-threading + code cleaning
