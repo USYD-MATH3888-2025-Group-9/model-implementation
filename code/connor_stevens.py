@@ -96,7 +96,7 @@ class PowerSigmoidal:
 
 class StepFunction:
     #type: list<pairs:start,value>, must be ordered.
-    steps = [] 
+    steps = []
     default = 0
     def run(self,x):
         out = self.default
@@ -294,12 +294,12 @@ from model_and_parameters import *
 
 # 2. Solve Numerically
 def basic_system_data():
-    params = cs.Parameters()
+    params = Parameters()
     V0 = [-40,0.9,0.9,0.9,0.9,0.9,0.9]
     t_span = [0, 1200]
     stepmul = 100
     t_eval = np.linspace(t_span[0], t_span[1], (t_span[1] - t_span[0])*stepmul)
-    sol = solve_ivp(cs.connor_stevens, t_span, V0, args=(params,), dense_output=True, t_eval=t_eval, method='RK45')
+    sol = solve_ivp(connor_stevens, t_span, V0, args=(params,), dense_output=True, t_eval=t_eval, method='RK45')
     
     # 3. Plot the Results
     display_time = 150
@@ -313,7 +313,7 @@ def basic_system_data():
     ax5 = fig.add_subplot(gs[0,2])
     #axs[0,0].plot(sol.t, sol.y[0])
 
-    ax1.plot(sol.t[:display_time], sol.y[0][:display_time], label=cs.pretty_names(0))
+    ax1.plot(sol.t[:display_time], sol.y[0][:display_time], label=pretty_names(0))
     ax1.set_title('Membrane Potential Time Course')
     ax1.set_xlabel('Time (ms)')
     ax1.set_ylabel('Membrane voltage (mV)')
@@ -321,7 +321,7 @@ def basic_system_data():
     ax1.legend()
 
     for i in [1,2,3,4,5,6]:
-        ax2.plot(sol.t[:display_time], sol.y[i][:display_time], label=cs.pretty_names(i))
+        ax2.plot(sol.t[:display_time], sol.y[i][:display_time], label=pretty_names(i))
     ax2.set_title('Channel Behaviour Time Course')
     ax2.set_xlabel('Time (ms)')
     ax2.set_ylabel('Activated Channels Proportion')
@@ -330,8 +330,8 @@ def basic_system_data():
     
     for i in [2,3,4]:
         vrange = np.linspace(-100,25,100)
-        ax3.plot(vrange, params.ainf(i,vrange), label=cs.pretty_names(i - 1))
-        ax3.plot(vrange,params.binf(i,vrange), label=cs.pretty_names(i + 2))
+        ax3.plot(vrange, params.ainf(i,vrange), label=pretty_names(i - 1))
+        ax3.plot(vrange,params.binf(i,vrange), label=pretty_names(i + 2))
     ax3.set_title('Channel Behaviour vs Voltage')
     ax3.set_xlabel('Voltage (mV)')
     ax3.set_ylabel('Activated Channels Proportion')
@@ -342,8 +342,8 @@ def basic_system_data():
         vrange = np.linspace(-100,25,100)
         ataus = np.array([params.atau(i,v) for v in vrange])
         btaus = np.array([params.btau(i,v) for v in vrange])
-        ax4.plot(vrange,ataus, label=cs.pretty_names(i - 1))
-        ax4.plot(vrange,btaus, label=cs.pretty_names(i + 2))
+        ax4.plot(vrange,ataus, label=pretty_names(i - 1))
+        ax4.plot(vrange,btaus, label=pretty_names(i + 2))
     ax4.set_title('Channel Behaviour vs Voltage')
     ax4.set_xlabel('Voltage (mV)')
     ax4.set_ylabel('Rate constant (ms)')
@@ -410,10 +410,10 @@ def generate_points(param):
             random_start.append((random.random() - 0.5) * 200)
         else:
             random_start.append(random.random())
-    steady = fsolve(lambda x: cs.connor_stevens(0,x,param),np.array(random_start))
+    steady = fsolve(lambda x: connor_stevens(0,x,param),np.array(random_start))
     return steady
 
-def find_steady_states(verbose=False,param=cs.Parameters(),tolerance_max=400):
+def find_steady_states(verbose=False,param=Parameters(),tolerance_max=400):
     all_bins = []
     start_time = time.time()
     if verbose: print("Stage 1")
@@ -472,9 +472,9 @@ def phase_planes(sol):
                 print("ignoring steady state", steady_state[s],f"because confidence {confidence[s]:.2f} is less than {plot_steady_min_confidence:.2f}")
                 break
             ax1.plot(steady_state[s][0][i[0]],steady_state[s][0][i[1]],'go', ms=10, label=f'Steady State, confidence {confidence[s]:.2f}')
-        ax1.set_title('Phase space: ' + cs.pretty_names(i[0]) + ' and ' + cs.pretty_names(i[1]))
-        ax1.set_xlabel(cs.pretty_names(i[0]))
-        ax1.set_ylabel(cs.pretty_names(i[1]))
+        ax1.set_title('Phase space: ' + pretty_names(i[0]) + ' and ' + pretty_names(i[1]))
+        ax1.set_xlabel(pretty_names(i[0]))
+        ax1.set_ylabel(pretty_names(i[1]))
         ax1.grid(True)
         ax1.legend()
         count += 1
@@ -491,14 +491,14 @@ def phase_planes(sol):
         ax2 = axes2[count]
         ax2.plot(sol.y[i[0]],sol.y[i[1]],sol.y[i[2]])
         for s in range(len(steady_state)):
-            if confidence[s] < plot_steady_min_confidence: 
+            if confidence[s] < plot_steady_min_confidence:
                 print("ignoring steady state", steady_state[s],f"because confidence {confidence[s]:.2f} is less than {plot_steady_min_confidence:.2f}")
                 break
             ax2.plot(steady_state[s][0][i[0]],steady_state[s][0][i[1]],steady_state[s][0][i[2]],'go', ms=10, label=f'Steady State, confidence {confidence[s]:.2f}')
-        ax2.set_title('Phase space: ' + cs.pretty_names(i[0]) + ' and ' + cs.pretty_names(i[1]) + ' and ' + cs.pretty_names(i[2]))
-        ax2.set_xlabel(cs.pretty_names(i[0]))
-        ax2.set_ylabel(cs.pretty_names(i[1]))
-        ax2.set_zlabel(cs.pretty_names(i[2]))
+        ax2.set_title('Phase space: ' + pretty_names(i[0]) + ' and ' + pretty_names(i[1]) + ' and ' + pretty_names(i[2]))
+        ax2.set_xlabel(pretty_names(i[0]))
+        ax2.set_ylabel(pretty_names(i[1]))
+        ax2.set_zlabel(pretty_names(i[2]))
         ax2.grid(True)
         ax2.legend()
         count += 1
@@ -506,15 +506,14 @@ def phase_planes(sol):
 
 class Bifurcator:
     mod = None # modifier, converts parameter type to a new one with required value
-    base = cs.Parameters()
-    model = cs.connor_stevens
+    base = Parameters()
+    model = connor_stevens
     p_range = np.linspace(0,100,100)
     threaded = False
     task_name = None
-    
     @staticmethod
     def _steady_states_task(new,i):
-        steady,confidence = find_steady_states(param=new,tolerance_max=tolerance_max)
+        steady,confidence = find_steady_states(param=new,tolerance_max=50)
         confidence_sorted = confidence.tolist()
         confidence_sorted.sort(reverse=True)
         confidence_finder = {}
@@ -542,7 +541,7 @@ class Bifurcator:
             eig_data = eig(jacob,right=True)
             evectors = eig_data[1]
             evals = eig_data[0]
-            if verbose: print("eigenvalues",evals)
+            #if verbose: print("eigenvalues",evals)
             out.append(np.array(evals))
         return [out,i]
     
@@ -599,10 +598,10 @@ class Bifurcator:
         out_list = []
         counter = 0
         for i in self.p_range:
-            if verbose: print("count",counter)
+            #if verbose: print("count",counter)
             new_entry = copy.deepcopy(self.base)
             new_entry = self.mod(new_entry,i)
-            if verbose: print("running",self.p_range[counter])
+            #if verbose: print("running",self.p_range[counter])
             out_list.append(task(new_entry,i))
             counter += 1
         return out_list
@@ -621,18 +620,18 @@ class Bifurcator:
                 out_list.append(r.result())
         return out_list
     
-    def _generate_modified_task(self,count):
+    def _generate_modified_task(self,counter):
         i = self.p_range[counter]
-        if verbose: print("count",counter)
+        #if verbose: print("count",counter)
         new_entry = copy.deepcopy(self.base)
         new_entry = self.mod(new_entry,i)
-        if verbose: print("running",i)
-        match self.current_task:
+        print("running",i)
+        match self.task_name:
             case '_steady_states_task':
                 return self._steady_states_task(new_entry,i)
             case '_eigenvalue_dance_task':
                 return self._eigenvalue_dance_task(new_entry,i)
-        return self.current_task(new_entry,i)
+        #return self.current_task(new_entry,i)
     
     def __init__(self,mod,base,p_range,threaded):
         self.mod = mod
@@ -837,7 +836,7 @@ def timescale_phase_plots():
 
 def bifurcate_2d_timescales(ts,range_var1,range_var2,range_bifurcate,bifurcate_index,params): #index in [a2,a3,a4,b2,b3,b4]
     resolution = range_var1.shape[0]
-    if resolution != range_var2.shape[0] or resolution != range_bifurcate.shape[0]: 
+    if resolution != range_var2.shape[0] or resolution != range_bifurcate.shape[0]:
         raise ValueError("The input arrays do not have the same shape/resolution: " \
                          + str(resolution) + ' (var 1), ' + str(range_var2.shape[0]) + ' (var 2), '\
                          + str(range_bifurcate.shape[0]) + '(bifurcate)')
@@ -970,38 +969,63 @@ def bifurcate_2d_timescales(ts,range_var1,range_var2,range_bifurcate,bifurcate_i
 #The parameter to bifurcate on is changed here
 def modifier(p,m):
     out = p
+    out.v_j[1] = m
+    return out
+
+def modifier2(p,m):
+    out = p
     out.v_j[2] = m
+    return out
+
+def modifier3(p,m):
+    out = p
+    out.v_j[3] = m
     return out
 
 def main():
     # basic_system_data()
-    soln = basic_system_data()
-    phase_planes(soln)
+    #soln = basic_system_data()
+    #phase_planes(soln)
     #test = Bifurcator(modifier,Parameters(),np.linspace(-35,35,50))
     #steady_state_results = perform_bifurcation(test)
     #eigenvalue_plot(test,steady_state_results,continuous_fake=True)
 
     #Threaded system speed test
     #This does NOT work for eigenvalue dance as it's not really needed
+    param_range = np.linspace(-80,80,100)
+    thread_start = time.time()
+    test1 = Bifurcator(modifier,Parameters(),param_range,True) #this True/False controls if the threading is on
+    steady_state_results1 = perform_bifurcation(test1,tolerance_max=100)
+    threaded_time = time.time() - thread_start
+    print("1: Threaded took:",threaded_time)
     
     thread_start = time.time()
-    test = Bifurcator(modifier,Parameters(),np.linspace(-80,80,50),True) #this True/False controls if the threading is on
-    steady_state_results = perform_bifurcation(test,tolerance_max=15)
-    plot_bifurcation(steady_state_results)
+    test2 = Bifurcator(modifier2,Parameters(),param_range,True) #this True/False controls if the threading is on
+    steady_state_results2 = perform_bifurcation(test2,tolerance_max=100)
     threaded_time = time.time() - thread_start
-    print("Threaded took:",threaded_time)
+    print("2: Threaded took:",threaded_time)
     
-    un_start = time.time()
-    test = Bifurcator(modifier,Parameters(),np.linspace(-80,80,50),False)
+    thread_start = time.time()
+    test3 = Bifurcator(modifier3,Parameters(),param_range,True) #this True/False controls if the threading is on
+    steady_state_results3 = perform_bifurcation(test3,tolerance_max=100)
+    threaded_time = time.time() - thread_start
+    print("3: Threaded took:",threaded_time)
+    plot_bifurcation(steady_state_results1)
+    plot_bifurcation(steady_state_results2)
+    plot_bifurcation(steady_state_results3)
+    # MARK: Finish this bit
+    test1.eigenvalue_dance()
+    #un_start = time.time()
+    #test = Bifurcator(modifier,Parameters(),np.linspace(-80,80,50),False)
     #steady_state_results = perform_bifurcation(test,tolerance_max=50)
-    plot_bifurcation(steady_state_results)
-    unthreaded_time = time.time() - un_start
-    print("Unthreaded took:",unthreaded_time)
+    #plot_bifurcation(steady_state_results)
+    #unthreaded_time = time.time() - un_start
+    #print("Unthreaded took:",unthreaded_time)
     #eigenvalue_plot(test,steady_state_results,0,continuous_fake=True)
 
     #This currently functions, but fails to graph it.
-    bifurcate_2d_timescales(2,np.linspace(0,1,100),np.linspace(0,1,100),np.linspace(0,1,100),1,Parameters())
-    timescale_phase_plots()
+    #bifurcate_2d_timescales(2,np.linspace(0,1,100),np.linspace(0,1,100),np.linspace(0,1,100),1,Parameters())
+    #timescale_phase_plots()
 
 if __name__ == "__main__":
     main()
