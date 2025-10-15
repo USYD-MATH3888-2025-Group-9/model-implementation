@@ -15,6 +15,7 @@
 !bib.bib
 main-blx.bib
 
+presentation/*/
 papers/*
 datasets/*
 outputs/
