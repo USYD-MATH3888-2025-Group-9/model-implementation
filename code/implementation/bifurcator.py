@@ -103,11 +103,11 @@ def find_steady_states(verbose=False,param=Parameters(),tolerance_max=400):
 
 def phase_planes(sol):
     
-    steady_state,confidence = find_steady_states(verbose=False,tolerance_max=110)
+    #steady_state,confidence = find_steady_states(verbose=False,tolerance_max=110)
     print("Steady state:")
     np.set_printoptions(precision=2)
-    for i in range(len(steady_state)):
-        print(f" {i+1} : \033[32;1;4m{steady_state[i]} \033[0m , \033[31;1m conf {confidence[i]:.2f} \033[0m")
+    # for i in range(len(steady_state)):
+    #     print(f" {i+1} : \033[32;1;4m{steady_state[i]} \033[0m , \033[31;1m conf {confidence[i]:.2f} \033[0m")
     
     pairs = {'2d':[[0,1],[0,2],[0,3],[0,4],[0,5],[0,6]],
             '3d':[[1,2,3],[4,5,6],[0,1,4],[0,2,5],[0,3,6]]}
@@ -123,11 +123,11 @@ def phase_planes(sol):
     for i in pairs['2d']:
         ax1 = axes[count]
         ax1.plot(sol.y[i[0]],sol.y[i[1]])
-        for s in range(len(steady_state)):
-            if confidence[s] < plot_steady_min_confidence:
-                print("ignoring steady state", steady_state[s],f"because confidence {confidence[s]:.2f} is less than {plot_steady_min_confidence:.2f}")
-                break
-            ax1.plot(steady_state[s][0][i[0]],steady_state[s][0][i[1]],'go', ms=10, label=f'Steady State, confidence {confidence[s]:.2f}')
+    #     for s in range(len(steady_state)):
+    #         if confidence[s] < plot_steady_min_confidence:
+    #             print("ignoring steady state", steady_state[s],f"because confidence {confidence[s]:.2f} is less than {plot_steady_min_confidence:.2f}")
+    #             break
+    #         ax1.plot(steady_state[s][0][i[0]],steady_state[s][0][i[1]],'go', ms=10, label=f'Steady State, confidence {confidence[s]:.2f}')
         ax1.set_title('Phase space: ' + pretty_names(i[0]) + ' and ' + pretty_names(i[1]))
         ax1.set_xlabel(pretty_names(i[0]))
         ax1.set_ylabel(pretty_names(i[1]))
@@ -146,11 +146,11 @@ def phase_planes(sol):
     for i in pairs['3d']:
         ax2 = axes2[count]
         ax2.plot(sol.y[i[0]],sol.y[i[1]],sol.y[i[2]])
-        for s in range(len(steady_state)):
-            if confidence[s] < plot_steady_min_confidence:
-                print("ignoring steady state", steady_state[s],f"because confidence {confidence[s]:.2f} is less than {plot_steady_min_confidence:.2f}")
-                break
-            ax2.plot(steady_state[s][0][i[0]],steady_state[s][0][i[1]],steady_state[s][0][i[2]],'go', ms=10, label=f'Steady State, confidence {confidence[s]:.2f}')
+#        for s in range(len(steady_state)):
+#            if confidence[s] < plot_steady_min_confidence:
+#                print("ignoring steady state", steady_state[s],f"because confidence {confidence[s]:.2f} is less than {plot_steady_min_confidence:.2f}")
+#                break
+#            ax2.plot(steady_state[s][0][i[0]],steady_state[s][0][i[1]],steady_state[s][0][i[2]],'go', ms=10, label=f'Steady State, confidence {confidence[s]:.2f}')
         ax2.set_title('Phase space: ' + pretty_names(i[0]) + ' and ' + pretty_names(i[1]) + ' and ' + pretty_names(i[2]))
         ax2.set_xlabel(pretty_names(i[0]))
         ax2.set_ylabel(pretty_names(i[1]))

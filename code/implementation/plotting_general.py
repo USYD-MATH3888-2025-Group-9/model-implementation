@@ -8,14 +8,14 @@ import machine_config
 
 def basic_system_data():
     params = Parameters()
-    V0 = [-40,0.9,0.9,0.9,0.9,0.9,0.9]
-    t_span = [0, 1200]
-    numsteps = (t_span[1] - t_span[0])*stepmul
+    V0 = [-40,0.5,0.5,0.5,0.5,0.5,0.5]
+    t_span = [0, 3000]
+    numsteps = (t_span[1] - t_span[0])#*stepmul
     t_eval = np.linspace(t_span[0], t_span[1], numsteps)
     sol = solve_ivp(connor_stevens, t_span, V0, args=(params,), dense_output=True, t_eval=t_eval, method='RK45')
     
     # 3. Plot the Results
-    display_time = 150
+    display_time = 3000
     
     gs = gridspec.GridSpec(2,3)
     fig = plt.figure(figsize=(24,12))
