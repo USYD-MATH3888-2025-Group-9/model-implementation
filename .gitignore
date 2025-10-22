@@ -18,6 +18,6 @@ main-blx.bib
 presentation/*/
 papers/*
 datasets/*
-outputs/
+
 machine_config.py
 __pycache__/*
