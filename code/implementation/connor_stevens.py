@@ -94,7 +94,8 @@ def bifurcation_plots():
     #timescale_phase_plots()
 
 def main():
-    basic_plots()
+    time_series_plot_final_report()
+    phase_plane_plots_final_report()
 
 
 if __name__ == "__main__":
