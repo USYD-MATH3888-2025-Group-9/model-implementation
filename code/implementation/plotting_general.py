@@ -1,6 +1,8 @@
 from scipy.integrate import solve_ivp
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+import warnings
+from matplotlib.collections import LineCollection
 
 
 from model_and_parameters import * 
@@ -117,6 +119,42 @@ def time_series_plot_final_report():
 
     plt.show()
 
+# Taken from the online matplotlib documentation (https://matplotlib.org/stable/gallery/lines_bars_and_markers/multicolored_line.html)
+def colored_line(x,y,c,ax, **lc_kwargs):
+    if "array" in lc_kwargs:
+        warnings.warn('The provided "array" keyword argument will be overridden')
+
+    # Default the capstyle to butt so that the line segments smoothly line up
+    default_kwargs = {"capstyle": "butt"}
+    default_kwargs.update(lc_kwargs)
+
+    # Compute the midpoints of the line segments. Include the first and last points
+    # twice so we don't need any special syntax later to handle them.
+    x = np.asarray(x)
+    y = np.asarray(y)
+    x_midpts = np.hstack((x[0], 0.5 * (x[1:] + x[:-1]), x[-1]))
+    y_midpts = np.hstack((y[0], 0.5 * (y[1:] + y[:-1]), y[-1]))
+
+    # Determine the start, middle, and end coordinate pair of each line segment.
+    # Use the reshape to add an extra dimension so each pair of points is in its
+    # own list. Then concatenate them to create:
+    # [
+    #   [(x1_start, y1_start), (x1_mid, y1_mid), (x1_end, y1_end)],
+    #   [(x2_start, y2_start), (x2_mid, y2_mid), (x2_end, y2_end)],
+    #   ...
+    # ]
+    coord_start = np.column_stack((x_midpts[:-1], y_midpts[:-1]))[:, np.newaxis, :]
+    coord_mid = np.column_stack((x, y))[:, np.newaxis, :]
+    coord_end = np.column_stack((x_midpts[1:], y_midpts[1:]))[:, np.newaxis, :]
+    segments = np.concatenate((coord_start, coord_mid, coord_end), axis=1)
+
+    lc = LineCollection(segments, **default_kwargs)
+    lc.set_array(c)  # set the colors of each segment
+
+    return ax.add_collection(lc)
+
+
+
 def phase_plane_plots_final_report():
     params = Parameters()
     V0 = [-40,0.5,0.5,0.5,0.5,0.5,0.5]
@@ -129,27 +167,32 @@ def phase_plane_plots_final_report():
 
     pairs = [[0,2],[0,3],[0,5]]
     
-
     gs = gridspec.GridSpec(1,3,width_ratios=[1,1,1])
     fig = plt.figure(figsize=(16,10))
-    
 
     axes = []
     for j in [0]:
         for k in [0,1,2]:
             axes.append(fig.add_subplot(gs[j,k]))
     
+    colour = np.linspace(t_span[0],t_span[1],numsteps)
+
     
     count = 0
     for i in pairs:
         ax = axes[count]
-        ax.plot(sol.y[i[0]],sol.y[i[1]])
+        line = colored_line(sol.y[i[0]],sol.y[i[1]],colour, ax,linewidth=2,cmap='viridis')
+        #ax.plot(sol.y[i[0]],sol.y[i[1]])
+        ax.set_xlim(min(sol.y[i[0]]) - 1, max(sol.y[i[0]]) + 1)
         ax.set_title('Phase space: ' + pretty_names(i[0]) + ' and ' + pretty_names(i[1]))
+        ax.set_ylim(min(sol.y[i[1]]) - 0.1, max(sol.y[i[1]]) + 0.1)
+
         ax.set_xlabel(pretty_names(i[0]))
         ax.set_ylabel(pretty_names(i[1]))
         ax.grid(True)
         # ax.legend()
         count += 1
+    fig.colorbar(line)
 
     fig.suptitle(f"Selected phase planes - {machine_config.author}")
 
