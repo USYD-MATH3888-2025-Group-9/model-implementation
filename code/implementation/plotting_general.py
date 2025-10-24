@@ -81,7 +81,7 @@ def basic_system_data():
 
 def time_series_plot_final_report():
     params = Parameters()
-    V0 = [-40,0.5,0.5,0.5,0.5,0.5,0.5]
+    V0 = [-40,0.9,0.8,0.8,0.1,0.2,0.2]
     t_span = [0, 3000]
     numsteps = (t_span[1] - t_span[0])#*stepmul
     t_eval = np.linspace(t_span[0], t_span[1], numsteps)
