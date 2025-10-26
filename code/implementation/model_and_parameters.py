@@ -103,6 +103,13 @@ class Constant:
     def __init__(self,value):
         self.value = value
 
+
+def pulse(t, t_start, val, length=0.001):
+    if t > t_start and t < t_start + length:
+        return val
+    else:
+        return 0
+
 def v_shift(t,j):
     match j:
         case 0:
@@ -112,25 +119,14 @@ def v_shift(t,j):
         case 2:
             return 0
         case 3:
-            if t < 9000:
-                return 0
-            #if t < 9300:
-            #    return 45
-            #if t < 15000:
-            #    return -45
-            #if t < 15300:
-            #    return 45
-            else:
-                return 0
+            return 0 + pulse(t,1,2.5)
 
-def Istim(t):
-    if t > 1 and t < 1.001:
-        return 10
-    if t > 1.8 and t < 1.801:
-        return 10
-    else:
-        return 0
 
+
+def Iapp_ext(t):
+    base = 7.65
+    return base + pulse(t,1,25) + pulse(t,1.8,25)
+    
 # --- Physiological Parameters ---
 class Parameters:
     cm = 14 # trial, 14pF
@@ -247,7 +243,7 @@ class Parameters:
         '''
         return self.binf_j[j - 1].run(v)
     def I(self,t): #applied current
-        return self.Iapp.run(t) + Istim(t)
+        return self.Iapp.run(t) + Iapp_ext(t)
 
 
 # Solution parameters
