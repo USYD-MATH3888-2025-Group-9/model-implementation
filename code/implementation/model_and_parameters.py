@@ -103,6 +103,34 @@ class Constant:
     def __init__(self,value):
         self.value = value
 
+def v_shift(t,j):
+    match j:
+        case 0:
+            return 0
+        case 1:
+            return 0
+        case 2:
+            return 0
+        case 3:
+            if t < 9000:
+                return 0
+            #if t < 9300:
+            #    return 45
+            #if t < 15000:
+            #    return -45
+            #if t < 15300:
+            #    return 45
+            else:
+                return 0
+
+def Istim(t):
+    if t > 1 and t < 1.001:
+        return 10
+    if t > 1.8 and t < 1.801:
+        return 10
+    else:
+        return 0
+
 # --- Physiological Parameters ---
 class Parameters:
     cm = 14 # trial, 14pF
@@ -186,12 +214,12 @@ class Parameters:
             xshift=60
         )
     ]
-    Iapp = Constant(10)
-    def v(self,j): #mV
+    Iapp =  Constant(0)
+    def v(self,t,j): #mV
         '''
         Nernst potentials
         '''
-        return self.v_j[j - 1]
+        return self.v_j[j - 1] + v_shift(t,j-1)
     def g(self,j): #mS/cm^2
         '''
         Conductance constants
@@ -219,7 +247,7 @@ class Parameters:
         '''
         return self.binf_j[j - 1].run(v)
     def I(self,t): #applied current
-        return self.Iapp.run(t)
+        return self.Iapp.run(t) + Istim(t)
 
 
 # Solution parameters
@@ -251,7 +279,7 @@ def connor_stevens(t, x, p):
                 return b4
     summed_terms = 0
     for j in [1,2,3,4]:
-        summed_terms += (p.g(j)) * (a(j) ** j) * b(j) * (v - p.v(j)) * p.disabled[j]
+        summed_terms += (p.g(j)) * (a(j) ** j) * b(j) * (v - p.v(t,j)) * p.disabled[j]
     dvdt = (1 / p.cm) * (p.I(t) - summed_terms)
     dadt = [0,0] # so that the indexes line up
     dbdt = [0,0]
