@@ -15,7 +15,7 @@ import pandas as pd
 import numpy as np
 
 
-dataentry = "a2t11"
+dataentry = "a3t03"
 PATH = f"../../datasets/physionet.org/files/sgamp/1.0.0/raw/{dataentry}"
 
 def gen_records(PATH):
@@ -95,12 +95,13 @@ def main():
     ax2_2 = fig2.add_subplot(gs[1,0])
 
     ax1_2.plot(tspace,V_VALS, label = "Data values")
-    ax1_2.plot(tspace,scaled_soln_vals, label = "Model values")
-    ax1_2.legend(loc="center", bbox_to_anchor=(0.05,0.95))
-    ax2_2.set_title("Log difference (error)")
-    ax2_2.plot(tspace, np.log(np.abs(scaled_soln_vals - V_VALS)), label = "log difference")
+    #ax1_2.plot(tspace,scaled_soln_vals, label = "Model values")
+    #ax1_2.legend(loc="center", bbox_to_anchor=(0.05,0.95))
+    ax2_2.set_title("Applied Current")
+    #ax2_2.plot(tspace, np.log(np.abs(scaled_soln_vals - V_VALS)), label = "log difference")
+    ax2_2.plot(tspace, I_VALS)
     
-    fig2.suptitle(f"Comparison of membrane potential from data\n and our model : {machine_config.author}")
+    fig2.suptitle(f"Membrane potential from data\n{machine_config.author}")
     
     
     plt.show()
