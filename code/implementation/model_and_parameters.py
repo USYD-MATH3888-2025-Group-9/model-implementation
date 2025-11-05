@@ -198,16 +198,14 @@ class Parameters:
         Sigmoidal(
             a=1,
             b=1,
-            c=-10,
+            c=10,
             d=-5,
-            xshift=20
         ),
         Sigmoidal(
             a=1,
             b=1,
-            c=0,
-            d=-20,
-            xshift=60
+            c=60,
+            d=-20
         )
     ]
     Iapp =  Constant(0)
